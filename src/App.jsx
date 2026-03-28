@@ -1,0 +1,838 @@
+import React, { useState, useRef, useEffect } from "react";
+import p5 from "p5";
+import { useAudioReactive } from "./hooks/useAudioReactive";
+
+
+
+// --- Example Sketches ---
+const sketches = {
+  bouncingBall: {
+    name: "Bouncing Ball",
+    controls: {
+      speed: { type: "range", min: 1, max: 10, default: 3 },
+      showTrail: { type: "checkbox", default: true },
+    },
+    sketch: (p5, params) => {
+      let x = 100;
+      let y = 100;
+      let vx = 2;
+      let vy = 2;
+
+      p5.setup = () => {
+        p5.createCanvas(600, 400);
+      };
+
+      p5.draw = () => {
+        if (!params.showTrail) p5.background(0);
+
+        x += vx * params.speed;
+        y += vy * params.speed;
+
+        if (x < 0 || x > p5.width) vx *= -1;
+        if (y < 0 || y > p5.height) vy *= -1;
+
+        p5.fill(255);
+        p5.circle(x, y, 20);
+      };
+    },
+  },
+  dupa: {
+    name: "Dupa",
+    controls: {
+      X_SIZE: { type: "range", min: 1, max: 100, default: 20 },
+      Y_SIZE: { type: "range", min: 1, max: 100, default: 20 },
+      Z_SIZE: { type: "range", min: 1, max: 100, default: 20 },
+
+      X_ROWS: { type: "range", min: 4, max: 35, default: 10 },
+      Y_ROWS: { type: "range", min: 4, max: 35, default: 10 },
+      Z_ROWS: { type: "range", min: 4, max: 35, default: 10 },
+
+      X_GAP: { type: "range", min: 0, max: 100, default: 0 },
+      Y_GAP: { type: "range", min: 0, max: 100, default: 0 },
+      Z_GAP: { type: "range", min: 0, max: 100, default: 0 },
+
+      X_ROTATE: { type: "range", min: 1, max: 360, default: 0 },
+      Y_ROTATE: { type: "range", min: 1, max: 360, default: 0 },
+      Z_ROTATE: { type: "range", min: 1, max: 360, default: 0 },
+
+      spinX: { type: "checkbox", default: false },
+      spinY: { type: "checkbox", default: false },
+      spinZ: { type: "checkbox", default: false },
+      
+      rotationSpped: { type: "range", min: 1, max: 100, default: 20 },
+
+      bg_fadeOut: { type: "range", min: 0, max: 200, default: 20 },
+
+      colorR: { type: "range", min: 0, max: 255, default: 0 },
+      colorG: { type: "range", min: 0, max: 255, default: 255 },
+      colorB: { type: "range", min: 0, max: 255, default: 200 },
+      opacity: { type: "range", min: 0, max: 255, default: 255 }, 
+
+
+
+      light_1: { type: "range", min: 0, max: 255, default: 0 },
+      light_2: { type: "range", min: 0, max: 255, default: 255 },
+      light_3: { type: "range", min: 0, max: 255, default: 255 },
+      light_4: { type: "range", min: -10, max: 10, default: -0.5 },
+      light_5: { type: "range", min: -10, max: 10, default: 0.5 },
+      light_6: { type: "range", min: -10, max: 10, default: -1 },
+
+      dynamicLight: {type: "checkbox", default: false},
+
+      z_position: { type: "range", min: -130, max: 2000, default: 0 },
+      Crazy_z_position: { type: "range", min: -50, max: 50, default: 0 },
+
+      Mypreset: { type: "select", options: ["neon", "minimal", "energy"] },
+
+      animate_x: {type: "checkbox", default: true},
+      animate_y: {type: "checkbox", default: true},
+      animate_z: {type: "checkbox", default: true},
+
+      freeze: {type: "checkbox", default: false},
+
+
+    },
+    sketch: (sketch, paramsRef, bandsRef) => {
+      
+      
+    const SCREEN_WIDTH = 800;
+    const SCREEN_HEIGHT = 800;
+
+    let X_SIZE = paramsRef.current.X_SIZE;
+    let Y_SIZE = paramsRef.current.Y_SIZE;
+    let Z_SIZE = paramsRef.current.Z_SIZE;
+
+    let X_ROWS = paramsRef.current.X_ROWS;
+    let Y_ROWS = paramsRef.current.Y_ROWS;
+    let Z_ROWS = paramsRef.current.Z_ROWS;
+
+    let X_GAP = paramsRef.current.X_GAP;
+		 let Y_GAP = paramsRef.current.Y_GAP;
+		 let Z_GAP = paramsRef.current.Z_GAP;
+
+
+    let x_pos = 0;
+    let y_pos = 0;
+    let z_pos = 0;
+
+    let rotX = 0;
+    let rotY = 0;
+    let rotZ = 0;
+
+    // STATE
+    let state = {};
+    let target = {};
+    let currentPreset = null;
+
+    // Animacja
+    let sc = 0;
+    let incrementerForAnimation = 0;
+
+    sketch.setup = function () {
+      sketch.createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT, sketch.WEBGL);
+
+       // inicjalizacja z aktualnych sliderów
+      state = { ...paramsRef.current };
+      target = { ...paramsRef.current };
+
+        // Background that stays from last pring 
+      // for (let i = 0; i < sketch.height; i++) {
+      //   let inter = i / sketch.height;
+      //   let c = sketch.lerpColor(
+      //     sketch.color(5, 10, 30),
+      //     sketch.color(0, 0, 0),
+      //     inter
+      //   );
+      //   sketch.stroke(c);
+      //   sketch.line(-sketch.width, i - sketch.height/2, sketch.width, i - sketch.height/2);
+      // }
+
+      const presets = {
+        neon: {
+          colorR: 0,
+          colorG: 255,
+          colorB: 220,
+          X_GAP: 2,
+          Y_GAP: 2,
+          Z_GAP: 2,
+          Y_ROTATE: 30
+        },
+
+        minimal: {
+          colorR: 200,
+          colorG: 200,
+          colorB: 255,
+          X_GAP: 0,
+          Y_GAP: 0,
+          Z_GAP: 0,
+          Y_ROTATE: 10
+        }
+      };
+    
+  };
+
+  sketch.draw = function() { 
+      // Podlaczenie do audio
+      const { bass, mid, high } = bandsRef.current.current;
+      // console.log('bandsRef', bandsRef.current, 'bass', bass , mid, high)
+
+
+    //X_SIZE = paramsRef.current.X_SIZE * (1 + bass * 0.5);
+    //Y_SIZE = paramsRef.current.Y_SIZE * (1 + bass * 0.5);
+    X_SIZE = paramsRef.current.X_SIZE;
+    Y_SIZE = paramsRef.current.Y_SIZE;
+    Z_SIZE = paramsRef.current.Z_SIZE //* (bass )
+    
+    X_ROWS = paramsRef.current.X_ROWS;
+    Y_ROWS = paramsRef.current.Y_ROWS;
+    Z_ROWS = paramsRef.current.Z_ROWS;
+  
+    sketch.scale(0.5,0.5, 0.5)
+    //X_GAP =  bass === 0 ? paramsRef.current.X_GAP : (paramsRef.current.X_GAP + 1) * (1 + bass * 50);
+		// fajne let X_GAP = paramsRef.current.X_GAP * 10;
+		//Y_GAP = bass === 0 ? paramsRef.current.Y_GAP : (paramsRef.current.Y_GAP + 1) * (1 + bass * 50);
+		//Z_GAP = bass === 0 ? paramsRef.current.Z_GAP : (paramsRef.current.Z_GAP + 1) * (1 + bass * 50);
+    //Y_GAP = paramsRef.current.Y_GAP;
+    //Z_GAP = paramsRef.current.Z_GAP;
+    
+    X_GAP = paramsRef.current.X_GAP;
+    X_GAP =  bass === 0 ? paramsRef.current.X_GAP : (paramsRef.current.X_GAP + 1) * (1 + bass * 50);
+    Y_GAP = paramsRef.current.Y_GAP;
+    //Y_GAP = bass === 0 ? paramsRef.current.Y_GAP : (paramsRef.current.Y_GAP + 1) * (1 + bass * 50);
+    //Z_GAP = bass === 0 ? paramsRef.current.Z_GAP : (paramsRef.current.Z_GAP + 1) * (1 + bass * 50);
+    //Z_GAP = paramsRef.current.Z_GAP;
+     
+     console.log(paramsRef.current.X_GAP, "paramsRef.current.X_GAP", X_GAP)
+     
+     
+     
+      // 1. NAJPROSTSZY EFEKT (fade trail)
+      //Zamień background na:
+      sketch.push();
+      sketch.resetMatrix(); // ważne przy WEBGL
+
+      //sketch.noStroke();
+      sketch.fill(25, 10, 30, paramsRef.current.bg_fadeOut); // ostatni parametr = szybkość zanikania
+      sketch.rect(-sketch.width/2, -sketch.height/2, sketch.width, sketch.height);
+      //sketch.rect(0,0, sketch.width, sketch.height);
+
+      sketch.pop();
+			// koniec 1
+
+			
+			// sketch.background(16, 25, 110);
+      // sketch.background(5, 10, 30); // ciemny granat
+      
+      
+
+
+      // 2. LEPSZA WERSJA (gradient + fade)
+      // Możesz połączyć fade + gradient:
+        // sketch.push();
+        // sketch.resetMatrix();
+
+        //   for (let i = 0; i < sketch.height; i += 4) {
+        //     let inter = i / sketch.height;
+
+        //     let c = sketch.lerpColor(
+        //       sketch.color(5, 10, 30, 25),
+        //       sketch.color(0, 0, 0, 25),
+        //       inter
+        //     );
+
+        //     sketch.stroke(c);
+        //     sketch.line(-sketch.width, i - sketch.height/2, sketch.width, i - sketch.height/2);
+        //   }
+
+        //   sketch.pop();
+      // Koniec 2           
+      
+      
+      
+      //debugger;
+			// let col = sketch.color(100, sketch.mouseY, 255, 255);
+      // let col = sketch.color(
+      //   paramsRef.current.colorR, 
+      //   paramsRef.current.colorG,
+      //   paramsRef.current.colorB,
+      //   paramsRef.current.opacity
+      // );
+
+      let col = sketch.color(
+        255, 
+        0,
+        180,
+        paramsRef.current.opacity
+      );
+
+      sketch.ambientLight(40, 0, 60);
+      sketch.directionalLight(0, 255, 255, -1, 0, -1);
+      
+       // 6. Cyberpunk preset (róż + niebieski)
+      // background(10, 0, 20);
+      // colorR: 255
+      // colorG: 0
+      // colorB: 180
+      // ambientLight(40, 0, 60);
+      // directionalLight(0, 255, 255, -1, 0, -1);
+
+			sketch.fill(col)
+			
+			// let dirY = 0
+		    // let dirX = 0
+
+      let dirY = (sketch.mouseY / parseFloat(sketch.height) - 0.5) * 2;
+		  let dirX = (sketch.mouseX / parseFloat(sketch.width) - 0.5) * 2;
+
+      
+			
+		  // sketch.directionalLight(204, 204, 204, -dirX, -dirY, -1);
+    //  sketch.directionalLight(
+    //   paramsRef.current.light_1,
+    //   paramsRef.current.light_2,
+    //   paramsRef.current.light_3,
+    //   paramsRef.current.light_4,
+    //   paramsRef.current.light_5,
+    //   paramsRef.current.light_6
+    // );
+
+    sketch.ambientLight(20, 20, 40);
+
+sketch.directionalLight(
+  paramsRef.current.light_1,
+  paramsRef.current.light_2,
+  paramsRef.current.light_3,
+  paramsRef.current.light_4,
+  paramsRef.current.light_5,
+  paramsRef.current.light_6
+);
+
+			sketch.stroke(20)
+			
+      sketch.line(0, -SCREEN_HEIGHT / 2, 0 , SCREEN_HEIGHT / 2 )
+			let s =1.2;
+      
+      // 🧠 7. Małe rzeczy które robią DUŻĄ różnicę
+      // 🔹 Usuń stroke (ważne!)
+      // sketch.noStroke();
+      // 🔹 albo delikatny glow edge:
+      // sketch.stroke(0, 255, 255, 40);
+			
+      sketch.stroke(1)
+
+			sketch.line(0, SCREEN_HEIGHT, SCREEN_WIDTH *2, SCREEN_HEIGHT)
+			sketch.line(SCREEN_WIDTH, 0, SCREEN_WIDTH, SCREEN_HEIGHT * 2)
+
+			for(let x = 0; x < 20; x++) {
+				sketch.ellipse(SCREEN_WIDTH + (x * 20), 800 + (sketch.sin((x/19) * sketch.PI) * 200), 20, 20);
+			}
+
+			sketch.strokeWeight(2);
+			// fajne ustawienie
+      
+
+			// sketch.rotateX(paramsRef.current.X_ROTATE / 90);
+			// sketch.rotateY(paramsRef.current.Y_ROTATE / 90);
+			// sketch.rotateZ(paramsRef.current.Z_ROTATE / 90);
+       
+
+      let dt = sketch.deltaTime * 0.05; // sekundy
+      if(paramsRef.current.spinX) {
+        rotX += dt * (paramsRef.current.rotationSpped/100);
+      }
+
+      if(paramsRef.current.spinY) {
+        rotY += dt * (paramsRef.current.rotationSpped/100);
+      }
+
+      if(paramsRef.current.spinZ) {
+        rotZ += dt * (paramsRef.current.rotationSpped/100);
+      } 
+
+      sketch.translate(0, 0, paramsRef.current.z_position)
+
+      sketch.rotateX(rotX)
+      sketch.rotateY(rotY)
+      sketch.rotateZ(rotZ)
+			//
+
+//      let rotX = 0;
+//       let rotY = 0;
+//       let rotZ = 0;
+
+//       let dt = sketch.deltaTime * 0.001; // sekundy
+
+//       if (paramsRef.current.spinX) {
+//         rotX += paramsRef.current.rotationSpped * dt;
+//       }
+
+//       if (paramsRef.current.spinY) {
+//         rotY += paramsRef.current.rotationSpped * dt;
+//       }
+
+//       if (paramsRef.current.spinZ) {
+//        rotZ += paramsRef.current.rotationSpped * dt;
+//       }
+        
+//      sketch.rotateX(rotX);
+// sketch.rotateY(rotY);
+// sketch.rotateZ(rotZ); 
+
+      // sketch.ambientLight(20, 20, 40);
+      // sketch.specularMaterial(0, 255, 200);  
+      
+      /*
+      5. Glass / hologram efekt
+        Mega futurystyczne:
+      */
+      // sketch.noStroke();
+      // sketch.specularMaterial(100, 200, 255);
+      // sketch.shininess(100);
+
+      // 6. Cyberpunk preset (róż + niebieski)
+      // background(10, 0, 20);
+      // colorR: 255
+      // colorG: 0
+      // colorB: 180
+      // ambientLight(40, 0, 60);
+      // directionalLight(0, 255, 255, -1, 0, -1);
+
+      // TL;DR – NAJSZYBSZY UPGRADE
+      // sketch.emissiveMaterial(0, 255, 200);
+      // sketch.background(5, 10, 30);
+      // sketch.noStroke();
+        
+			//rotateY(34)
+			sketch.translate(-((X_ROWS * X_SIZE) / 2) + (X_SIZE / 2) - ((X_GAP * X_ROWS) / 2) + (X_GAP / 2), 
+					   ((Y_ROWS * Y_SIZE) / 2) - (Y_SIZE / 2) + ((Y_GAP * Y_ROWS) / 2) - (Y_GAP / 2), 
+					   ((Z_ROWS * Z_SIZE) / 2) - (Z_SIZE / 2) + ((Z_GAP * Z_ROWS) / 2) - (Z_GAP / 2)
+					 )
+
+      // 8. Bonus: „pulsująca energia”
+      // Zamiast:
+			//let sc = sketch.sin(sketch.millis() / 400);
+      // daj:
+      // let sc = sketch.sin(sketch.millis() * 0.002);  
+      const speed = 20;
+      console.log("sketch.millis()", sketch.millis())
+      if(! paramsRef.current.freeze) {
+         incrementerForAnimation += speed;
+         //sc = sketch.sin(sketch.millis() * 0.002);  
+         sc = sketch.sin(incrementerForAnimation * 0.002);  
+        
+      }  
+			
+      let i = 1;
+      
+			for (let x = 0; x < X_ROWS; x++) {
+				for (let y = 0; y < Y_ROWS; y++) { 
+					for (let z = 0; z < Z_ROWS; z++) {
+						if (isFrontWall(x, y, z)) {
+							i++
+              const animation = sketch.sq(sc * 
+								sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
+										 	sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
+										 20) + 10;
+							
+							//let _z = sc; //sketch.round(sc * 
+              let _z = (paramsRef.current.animate_z) ? animation : 0;
+                            
+							setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, 0, _z);
+							drawBox(x_pos, y_pos, z_pos, X_SIZE , Y_SIZE, Z_SIZE, 0, 0, _z)
+						} else 
+						if (isBackWall(x, y, z)) {
+							
+							const animation = sketch.sq(sc * sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
+										 sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
+										 20)
+              
+              let _z = (paramsRef.current.animate_z) ? animation : 0;
+
+							setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, 0, -_z);
+							drawBox(x_pos, y_pos, z_pos, X_SIZE , Y_SIZE, -Z_SIZE, 0, 0, -_z)
+						} else 
+						if (isLeftWall(x, y, z)) {
+							const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
+										 sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
+										 20);
+
+              let _x = (paramsRef.current.animate_x) ? animation : 0;
+							
+              setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, -_x, 0, 0);
+							drawBox(x_pos, y_pos, z_pos, -X_SIZE , Y_SIZE, Z_SIZE, -_x, 0, 0)
+								
+						} else 
+						if (isRightWall(x, y, z)) {	
+							const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
+										 sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
+										 20);
+              
+              let _x = (paramsRef.current.animate_x) ? animation : 0;
+
+							setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, _x, 0, 0);
+							drawBox(x_pos, y_pos, z_pos, -X_SIZE , Y_SIZE, Z_SIZE, -_x, 0, 0)
+						} else 
+						if (isTopWall(x, y, z)) {	
+							const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
+										 sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
+										 20)
+
+              let _y = (paramsRef.current.animate_y) ? animation : 0;
+							
+							setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, -_y, 0);
+							drawBox(x_pos, y_pos, z_pos, X_SIZE , Y_SIZE, Z_SIZE, 0, -_y, 0)
+						} else 
+						if (isBottomWall(x, y, z)) {
+							const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
+										 sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
+										 20);
+
+              let _y = (paramsRef.current.animate_y) ? animation : 0;
+
+							setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, _y, 0);
+							drawBox(x_pos, y_pos, z_pos, X_SIZE , Y_SIZE, Z_SIZE, 0, -_y, 0)
+						// EDGES
+						} else {
+							//setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, 0, 0);
+							//drawBox(x_pos, y_pos, z_pos,X_SIZE , Y_SIZE, Z_SIZE, 0, 0, 0)
+						}
+					}
+				}
+			}
+
+          
+		}	
+
+		function isFrontWall(x, y, z) {
+			return z == 0 && y != 0 && y != Y_ROWS - 1 && x != 0 && x != X_ROWS - 1;
+		}
+
+		function isBackWall(x, y, z) {
+			return z == Z_ROWS - 1 && y != 0 && y != Y_ROWS - 1 && x != 0 && x != X_ROWS - 1 
+		}
+
+		function isTopWall(x, y, z) {
+			return y == 0 && z != 0 && z != Z_ROWS - 1 && x!= 0 && x != X_ROWS - 1
+		}
+
+		function isBottomWall(x, y, z) {
+			return y == Y_ROWS - 1 && z != 0 && z != Z_ROWS - 1 && x != 0 && x != X_ROWS-1
+		}
+
+		function isLeftWall(x, y, z) {
+			return x == 0 && y != 0 && y!= Y_ROWS - 1 && z != 0 && z!= Z_ROWS - 1
+		}
+
+		function isRightWall(x, y, z) {
+			return x == X_ROWS - 1 && y != 0 && y!= Y_ROWS - 1 && z != 0 && z!= Z_ROWS - 1
+		}
+
+		function setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, _x, _y, _z ) {
+			x_pos =  (X_SIZE * x) + (X_GAP * x) + (_x / 2);
+			y_pos = -(Y_SIZE * y) - (Y_GAP * y) - (_y / 2);
+			z_pos = (-(Z_SIZE * z) - (Z_GAP * z) + (_z / 2)) //* paramsRef.current.z_position; (wykurwisty param ale psuje)
+      z_pos += (z_pos * paramsRef.current.Crazy_z_position)
+		}
+
+		function drawBox(x_pos, y_pos, z_pos, X_SIZE, Y_SIZE, Z_SIZE, _x, _y, _z) {
+			sketch.push();
+				sketch.translate(x_pos, y_pos, z_pos);
+
+         // glow layer
+         // sketch.noStroke();
+         // sketch.fill(0, 255, 255, 20);
+        // sketch.box(X_SIZE * 1.3, Y_SIZE * 1.3, Z_SIZE * 1.3);
+
+        /*
+        🌈 4. Dynamiczny kolor (żyje 🔥)
+          Zamiast stałego koloru:
+      */
+       if(paramsRef.current.dynamicLight) {
+          let t = sketch.millis() * 0.001;
+          let r = 50 + 50 * sketch.sin(t);
+          let g = 200 + 55 * sketch.sin(t + 2);
+          let b = 255;
+          sketch.emissiveMaterial(r, g, b);
+      } else {
+
+        
+        let r = (x_pos / X_ROWS);
+        let g = (y_pos / Y_ROWS);
+        let b = (z_pos / Z_ROWS);
+        //sketch.emissiveMaterial(sketch.sin(r)*50, sketch.sin(g)*50, sketch.sin(b)*50);
+        
+        // let r = (x_pos / X_ROWS) * 255;
+        // let g = (y_pos / Y_ROWS) * 255;
+        // let b = (z_pos / Z_ROWS) * 255;
+        // sketch.emissiveMaterial(r, g, b);
+
+
+        // let t = sketch.millis() * 0.00;
+
+        // let r = 128 + 127 * sketch.sin(t + x_pos * 0.3);
+        // let g = 128 + 127 * sketch.sin(t + y_pos * 0.3);
+        // let b = 128 + 127 * sketch.sin(t + z_pos * 0.3);
+
+        // sketch.emissiveMaterial(r, g, b);
+              
+        
+        // sketch.emissiveMaterial(
+        //         paramsRef.current.colorR,
+        //         paramsRef.current.colorG,
+        //         paramsRef.current.colorB
+        //     );
+        }
+
+				sketch.box(X_SIZE + _x , Y_SIZE - _y, Z_SIZE + _z);
+			  sketch.pop();
+		}
+
+    function drawBox2(x_pos, y_pos, z_pos, X_SIZE, Y_SIZE, Z_SIZE, _x, _y, _z) {
+      sketch.push();
+      sketch.translate(x_pos, y_pos, z_pos);
+
+      // glow layer
+      sketch.noStroke();
+      sketch.fill(0, 255, 255, 20);
+      sketch.box(X_SIZE * 1.3, Y_SIZE * 1.3, Z_SIZE * 1.3);
+
+      // main cube
+      //sketch.emissiveMaterial(0, 255, 220);
+      sketch.box(X_SIZE + _x, Y_SIZE - _y, Z_SIZE + _z);
+
+      sketch.pop();
+    }
+    },
+  }
+};
+
+// --- Controls Panel ---
+function Controls({ config, values, setValues }) {
+  return (
+    <div className="p-4 border-l border-gray-700">
+      <h2 className="text-lg mb-2">Controls</h2>
+      {Object.entries(config).map(([key, conf]) => {
+        if (conf.type === "range") {
+          return (
+            <div key={key} className="mb-3">
+              <label>{key}: {values[key]}</label>
+              <input
+                type="range"
+                min={conf.min}
+                max={conf.max}
+                value={values[key]}
+                onChange={(e) =>
+                  setValues({ ...values, [key]: Number(e.target.value) })
+                }
+              />
+            </div>
+          );
+        }
+
+        if (conf.type === "checkbox") {
+          return (
+            <div key={key} className="mb-3">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={values[key]}
+                  onChange={(e) =>
+                    setValues({ ...values, [key]: e.target.checked })
+                  }
+                />
+                {key}
+              </label>
+            </div>
+          );
+        }
+
+        return null;
+      })}
+    </div>
+  );
+}
+
+// --- Sketch Renderer ---
+// function SketchView({ sketchConfig, params }) {
+//   const sketchFn = (p5) => sketchConfig.sketch(p5, params);
+//   return <Sketch setup={(p5, canvasParentRef) => p5.setup?.(p5, canvasParentRef)} draw={(p5) => p5.draw?.(p5)} />;
+// }
+
+// function SketchView({ sketchConfig, params }) {
+//   const containerRef = useRef();
+//     let instance;
+
+//   useEffect(() => {
+//     console.log("sketchConfig", sketchConfig)
+//     console.log("params", params)
+    
+
+//     const sketch = (p) => {
+//       sketchConfig.sketch(p, params);
+//     };
+
+//     instance = new p5(sketch, containerRef.current);
+
+//     return () => {
+//       instance.remove(); // cleanup przy zmianie
+//     };
+//   }, [sketchConfig.name, params]);
+
+//   return <div ref={containerRef} />;
+// }
+
+function SketchView({ sketchConfig, params, bands }) {
+  const containerRef = useRef();
+  const p5Instance = useRef(null);
+  const paramsRef = useRef(params);
+  const bandsRef = useRef(bands)
+
+  // 🔁 aktualizuj tylko dane (bez restartu)
+  useEffect(() => {
+    paramsRef.current = params;
+    bandsRef.current = bands;
+  }, [params, bands]);
+
+  // 🧠 twórz p5 tylko raz (lub przy zmianie sketch)
+  useEffect(() => {
+    if (p5Instance.current) {
+      p5Instance.current.remove();
+    }
+
+    const sketch = (p) => {
+      sketchConfig.sketch(p, paramsRef, bandsRef); // 👈 przekazujemy REF, nie state
+    };
+
+    p5Instance.current = new p5(sketch, containerRef.current);
+
+    return () => {
+      p5Instance.current?.remove();
+      p5Instance.current = null;
+    };
+  }, [sketchConfig]); // ❗ brak params
+
+  return <div ref={containerRef} />;
+}
+
+// --- Sidebar ---
+function Sidebar({ sketches, current, setCurrent }) {
+  return (
+    <div className="w-64 border-l border-gray-700 p-4">
+      <h2 className="text-lg mb-2">Sketches</h2>
+      {Object.keys(sketches).map((key) => (
+        <div
+          key={key}
+          className={`cursor-pointer p-2 ${current === key ? "bg-gray-700" : ""}`}
+          onClick={() => setCurrent(key)}
+        >
+          {sketches[key].name}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+import { useKick } from "./audio/kick";
+import { useKeyPress } from "./handlers/useKeyPress";
+import { useAudioSystem } from "./hooks/useAudioSystem";
+
+// --- Main App ---
+export default function App() {
+  const { playKick, bandsRef } = useAudioSystem();
+  useKeyPress("Space", playKick);
+
+  //const { bands } = useAudioReactive(); 
+  // SPACJA:
+  //useKeyPress("Space", playKick);
+  //const { playKick } = useKick();
+  
+  const [currentSketch, setCurrentSketch] = useState("dupa");
+  const sketchConfig = sketches[currentSketch];
+
+  console.log("bandsRef", bandsRef)
+
+  const initialValues = Object.fromEntries(
+    Object.entries(sketchConfig.controls).map(([k, v]) => [k, v.default])
+  );
+
+  const [params, setParams] = useState(initialValues);
+  
+
+  /*********************************
+    JSON loaded to PARAMS
+  */
+  function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target.result);
+
+        console.log("Wczytany JSON:", parsed);
+
+        // 🔥 ważne: merge żeby nie wywalić brakujących pól
+        setParams((prev) => ({
+          ...prev,
+          ...parsed,
+        }));
+
+      } catch (err) {
+        console.error("Błąd parsowania JSON:", err);
+        alert("Nieprawidłowy plik JSON");
+      }
+    };
+
+    reader.readAsText(file);
+  }
+  
+  /*********************************
+    PARAMS saved to JSON
+  */
+  function downloadJSON(data, fileName) {
+      console.log("downolad JSON", "params: " , data)
+      // 1. Tworzymy Blob (Binary Large Object) z naszymi danymi
+      const blob = new Blob([data], { type: "application/json" });
+
+      // 2. Tworzymy tymczasowy adres URL dla tego Bloba
+      const url = URL.createObjectURL(blob);
+
+      // 3. Tworzymy niewidoczny element <a>
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName; // Nazwa pliku, który zostanie pobrany
+
+      // 4. Symulujemy kliknięcie i usuwamy link
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // 5. Zwalniamy pamięć
+      URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div className="app">
+      {/* Left: Canvas */}
+      <div className="canvas-container">
+        <SketchView sketchConfig={sketchConfig} bands={bandsRef} params={params} name={sketchConfig.name}/>
+      </div>
+      <div className="controls"><Controls config={sketchConfig.controls} values={params} setValues={setParams} /></div>
+      <div>
+          <button onClick={(() => {
+            console.log('params', params)
+            downloadJSON(JSON.stringify(params), "some_bad_ass_file.json")})}>{"SAVE SETTINGS"}
+          </button>
+          <br/>
+          <input type="file" accept="application/json" onChange={handleFileUpload} />
+      </div>
+      {/* Right: Controls + List */}
+      <div className="panel">
+        
+        <div className="sidebar"><Sidebar sketches={sketches} current={currentSketch} setCurrent={setCurrentSketch} /></div>
+      </div>
+    </div>
+  );
+}

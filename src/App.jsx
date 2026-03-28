@@ -59,7 +59,7 @@ const sketches = {
       spinY: { type: "checkbox", default: false },
       spinZ: { type: "checkbox", default: false },
       
-      rotationSpped: { type: "range", min: 1, max: 100, default: 20 },
+      rotationSpped: { type: "range", min: 1, max: 1000, default: 20 },
 
       bg_fadeOut: { type: "range", min: 0, max: 200, default: 20 },
 
@@ -93,40 +93,48 @@ const sketches = {
 
     },
     sketch: (sketch, paramsRef, bandsRef) => {
-      
-      
-    const SCREEN_WIDTH = 800;
-    const SCREEN_HEIGHT = 800;
+        
+        const SCREEN_WIDTH = 800;
+        const SCREEN_HEIGHT = 800;
 
-    let X_SIZE = paramsRef.current.X_SIZE;
-    let Y_SIZE = paramsRef.current.Y_SIZE;
-    let Z_SIZE = paramsRef.current.Z_SIZE;
+        let X_SIZE = paramsRef.current.X_SIZE;
+        let Y_SIZE = paramsRef.current.Y_SIZE;
+        let Z_SIZE = paramsRef.current.Z_SIZE;
 
-    let X_ROWS = paramsRef.current.X_ROWS;
-    let Y_ROWS = paramsRef.current.Y_ROWS;
-    let Z_ROWS = paramsRef.current.Z_ROWS;
+        let X_ROWS = paramsRef.current.X_ROWS;
+        let Y_ROWS = paramsRef.current.Y_ROWS;
+        let Z_ROWS = paramsRef.current.Z_ROWS;
 
-    let X_GAP = paramsRef.current.X_GAP;
-		 let Y_GAP = paramsRef.current.Y_GAP;
-		 let Z_GAP = paramsRef.current.Z_GAP;
+        let X_GAP = paramsRef.current.X_GAP;
+        let Y_GAP = paramsRef.current.Y_GAP;
+        let Z_GAP = paramsRef.current.Z_GAP;
 
 
-    let x_pos = 0;
-    let y_pos = 0;
-    let z_pos = 0;
+        let x_pos = 0;
+        let y_pos = 0;
+        let z_pos = 0;
 
-    let rotX = 0;
-    let rotY = 0;
-    let rotZ = 0;
+        let rotX = 0;
+        let rotY = 0;
+        let rotZ = 0;
 
-    // STATE
-    let state = {};
-    let target = {};
-    let currentPreset = null;
+        // DO TRANZYCJI
+        const lerp = (a, b, t) => a + (b - a) * t;
+        const easeInOut = (t) => t * t * (3 - 2 * t);
 
-    // Animacja
-    let sc = 0;
-    let incrementerForAnimation = 0;
+        // STATE
+        let state = {};
+        let target = {};
+
+        let transitionProgress = 1;
+        let transitionDuration = 1.5; // sekundy
+        let currentPreset = null;
+
+        // Animacja
+        let sc = 0;
+        let incrementerForAnimation = 0;
+
+       
 
     sketch.setup = function () {
       sketch.createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT, sketch.WEBGL);
@@ -172,6 +180,50 @@ const sketches = {
   };
 
   sketch.draw = function() { 
+
+      // 🔥 wykryj zmianę params (slider / JSON)
+      let hasChanged = false;
+
+      for (let key in paramsRef.current) {
+        if (paramsRef.current[key] !== target[key]) {
+          hasChanged = true;
+          break;
+        }
+      }
+
+      if (hasChanged) {
+        target = { ...paramsRef.current };
+        transitionProgress = 0;
+      }
+
+      // INTERPOLACJA (core system)
+      const dt = sketch.deltaTime / 1000;
+
+      if (transitionProgress < 1) {
+        transitionProgress += dt / transitionDuration;
+        if (transitionProgress > 1) transitionProgress = 1;
+
+        const t = easeInOut(transitionProgress);
+
+        const newState = {};
+
+        for (let key in state) {
+          const start = state[key];
+          const end = target[key];
+
+          if (typeof start === "number" && typeof end === "number") {
+            newState[key] = lerp(start, end, t);
+          } else {
+            newState[key] = end;
+          }
+        }
+
+        state = newState;
+      } else {
+        state = target;
+      }
+
+
       // Podlaczenie do audio
       const { bass, mid, high } = bandsRef.current.current;
       // console.log('bandsRef', bandsRef.current, 'bass', bass , mid, high)
@@ -179,13 +231,13 @@ const sketches = {
 
     //X_SIZE = paramsRef.current.X_SIZE * (1 + bass * 0.5);
     //Y_SIZE = paramsRef.current.Y_SIZE * (1 + bass * 0.5);
-    X_SIZE = paramsRef.current.X_SIZE;
-    Y_SIZE = paramsRef.current.Y_SIZE;
-    Z_SIZE = paramsRef.current.Z_SIZE //* (bass )
+    X_SIZE = state.X_SIZE;
+    Y_SIZE = state.Y_SIZE;
+    Z_SIZE = state.Z_SIZE //* (bass )
     
-    X_ROWS = paramsRef.current.X_ROWS;
-    Y_ROWS = paramsRef.current.Y_ROWS;
-    Z_ROWS = paramsRef.current.Z_ROWS;
+    X_ROWS = state.X_ROWS;
+    Y_ROWS = state.Y_ROWS;
+    Z_ROWS = state.Z_ROWS;
   
     sketch.scale(0.5,0.5, 0.5)
     //X_GAP =  bass === 0 ? paramsRef.current.X_GAP : (paramsRef.current.X_GAP + 1) * (1 + bass * 50);
@@ -195,14 +247,14 @@ const sketches = {
     //Y_GAP = paramsRef.current.Y_GAP;
     //Z_GAP = paramsRef.current.Z_GAP;
     
-    X_GAP = paramsRef.current.X_GAP;
-    X_GAP =  bass === 0 ? paramsRef.current.X_GAP : (paramsRef.current.X_GAP + 1) * (1 + bass * 50);
-    Y_GAP = paramsRef.current.Y_GAP;
+    X_GAP = state.X_GAP;
+    X_GAP =  bass === 0 ? state.X_GAP : (state.X_GAP + 1) * (1 + bass * 50);
+    Y_GAP = state.Y_GAP;
     //Y_GAP = bass === 0 ? paramsRef.current.Y_GAP : (paramsRef.current.Y_GAP + 1) * (1 + bass * 50);
     //Z_GAP = bass === 0 ? paramsRef.current.Z_GAP : (paramsRef.current.Z_GAP + 1) * (1 + bass * 50);
     //Z_GAP = paramsRef.current.Z_GAP;
      
-     console.log(paramsRef.current.X_GAP, "paramsRef.current.X_GAP", X_GAP)
+     console.log(state.X_GAP, "paramsRef.current.X_GAP", X_GAP)
      
      
      
@@ -212,7 +264,7 @@ const sketches = {
       sketch.resetMatrix(); // ważne przy WEBGL
 
       //sketch.noStroke();
-      sketch.fill(25, 10, 30, paramsRef.current.bg_fadeOut); // ostatni parametr = szybkość zanikania
+      sketch.fill(25, 10, 30, state.bg_fadeOut); // ostatni parametr = szybkość zanikania
       sketch.rect(-sketch.width/2, -sketch.height/2, sketch.width, sketch.height);
       //sketch.rect(0,0, sketch.width, sketch.height);
 
@@ -262,7 +314,7 @@ const sketches = {
         255, 
         0,
         180,
-        paramsRef.current.opacity
+        state.opacity
       );
 
       sketch.ambientLight(40, 0, 60);
@@ -299,12 +351,12 @@ const sketches = {
     sketch.ambientLight(20, 20, 40);
 
 sketch.directionalLight(
-  paramsRef.current.light_1,
-  paramsRef.current.light_2,
-  paramsRef.current.light_3,
-  paramsRef.current.light_4,
-  paramsRef.current.light_5,
-  paramsRef.current.light_6
+  state.light_1,
+  state.light_2,
+  state.light_3,
+  state.light_4,
+  state.light_5,
+  state.light_6
 );
 
 			sketch.stroke(20)
@@ -336,20 +388,20 @@ sketch.directionalLight(
 			// sketch.rotateZ(paramsRef.current.Z_ROTATE / 90);
        
 
-      let dt = sketch.deltaTime * 0.05; // sekundy
-      if(paramsRef.current.spinX) {
-        rotX += dt * (paramsRef.current.rotationSpped/100);
+      // let dt = sketch.deltaTime * 0.05; // sekundy
+      if(state.spinX) {
+        rotX += dt * (state.rotationSpped/100);
       }
 
-      if(paramsRef.current.spinY) {
-        rotY += dt * (paramsRef.current.rotationSpped/100);
+      if(state.spinY) {
+        rotY += dt * (state.rotationSpped/100);
       }
 
-      if(paramsRef.current.spinZ) {
-        rotZ += dt * (paramsRef.current.rotationSpped/100);
+      if(state.spinZ) {
+        rotZ += dt * (state.rotationSpped/100);
       } 
 
-      sketch.translate(0, 0, paramsRef.current.z_position)
+      sketch.translate(0, 0, state.z_position)
 
       sketch.rotateX(rotX)
       sketch.rotateY(rotY)
@@ -415,7 +467,7 @@ sketch.directionalLight(
       // let sc = sketch.sin(sketch.millis() * 0.002);  
       const speed = 20;
       console.log("sketch.millis()", sketch.millis())
-      if(! paramsRef.current.freeze) {
+      if(! state.freeze) {
          incrementerForAnimation += speed;
          //sc = sketch.sin(sketch.millis() * 0.002);  
          sc = sketch.sin(incrementerForAnimation * 0.002);  
@@ -531,7 +583,7 @@ sketch.directionalLight(
 			x_pos =  (X_SIZE * x) + (X_GAP * x) + (_x / 2);
 			y_pos = -(Y_SIZE * y) - (Y_GAP * y) - (_y / 2);
 			z_pos = (-(Z_SIZE * z) - (Z_GAP * z) + (_z / 2)) //* paramsRef.current.z_position; (wykurwisty param ale psuje)
-      z_pos += (z_pos * paramsRef.current.Crazy_z_position)
+      z_pos += (z_pos * state.Crazy_z_position)
 		}
 
 		function drawBox(x_pos, y_pos, z_pos, X_SIZE, Y_SIZE, Z_SIZE, _x, _y, _z) {

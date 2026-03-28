@@ -92,8 +92,7 @@ const sketches = {
 
 
     },
-    sketch: (sketch, paramsRef, bandsRef) => {
-        
+    sketch: (sketch, paramsRef, bandsRef, onDebug) => {
         const SCREEN_WIDTH = 800;
         const SCREEN_HEIGHT = 800;
 
@@ -134,14 +133,64 @@ const sketches = {
         let sc = 0;
         let incrementerForAnimation = 0;
 
-       
+        // STORAGE (FOR ANIMATIONS)
+        let keyframes = [];
+        let isRecording = false;
+        let isPlaying = false;
+        let playhead = 0; // sekundy
+
+        // hack for saving
+        window.__keyframes = keyframes;
+
+        // Loading animation
+        window.__setKeyframes = (data) => {
+          keyframes.length = 0; // zachowujemy referencję
+          keyframes.push(...data);
+
+          playhead = 0;
+          isPlaying = true;
+
+          console.log("LOADED ANIMATION:", keyframes.length);
+        };
+
+        function recordFrame(time) {
+          keyframes.push({
+            time,
+            params: { ...paramsRef.current }
+          });
+      }
 
     sketch.setup = function () {
       sketch.createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT, sketch.WEBGL);
 
+      sketch.canvas.setAttribute('tabindex', '0');
+      sketch.canvas.focus();
+
        // inicjalizacja z aktualnych sliderów
       state = { ...paramsRef.current };
       target = { ...paramsRef.current };
+
+
+
+      sketch.keyPressed = () => {
+        if (sketch.key === 'r') {
+          isRecording = !isRecording;
+          console.log("RECORD:", isRecording);
+          console.log("FRAMES:", keyframes.length);
+          
+          if (isRecording) {
+            // keyframes = [];
+            keyframes.length = 0;
+            playhead = 0;
+          }
+        }
+
+        if (sketch.key === 'p') {
+          isPlaying = !isPlaying;
+          playhead = 0;
+          console.log("PLAY:", isPlaying);
+        }
+      };
 
         // Background that stays from last pring 
       // for (let i = 0; i < sketch.height; i++) {
@@ -180,9 +229,20 @@ const sketches = {
   };
 
   sketch.draw = function() { 
-
+    sketch.textFont('monospace');
+      //sketch.text(`frames: ${keyframes.length}`, -380, -360);
       // 🔥 wykryj zmianę params (slider / JSON)
       let hasChanged = false;
+
+      // DEBUGING    
+      onDebug({
+        isRecording,
+        isPlaying,
+        frames: keyframes.length,
+        time: playhead
+      });
+
+
 
       for (let key in paramsRef.current) {
         if (paramsRef.current[key] !== target[key]) {
@@ -191,10 +251,15 @@ const sketches = {
         }
       }
 
-      if (hasChanged) {
+      // if (hasChanged) {
+      //   target = { ...paramsRef.current };
+      //   transitionProgress = 0;
+      // }
+      if (!isPlaying && hasChanged) {
         target = { ...paramsRef.current };
         transitionProgress = 0;
       }
+      
 
       // INTERPOLACJA (core system)
       const dt = sketch.deltaTime / 1000;
@@ -221,6 +286,58 @@ const sketches = {
         state = newState;
       } else {
         state = target;
+      }
+
+      // RECORDING
+      if (isRecording) {
+        playhead += dt;
+        recordFrame(playhead);
+        console.log("REC frames:", keyframes.length);
+      }
+
+      // RECORD PLAYING
+      if (isPlaying && keyframes.length > 1) {
+        playhead += dt;
+
+        if (playhead > keyframes[keyframes.length - 1].time) {
+          playhead = 0; // 🔥 LOOP
+         }
+
+        // znajdź 2 klatki między którymi jesteśmy
+        let k1 = keyframes[0];
+        let k2 = keyframes[keyframes.length - 1];
+
+        for (let i = 0; i < keyframes.length - 1; i++) {
+          if (
+            playhead >= keyframes[i].time &&
+            playhead <= keyframes[i + 1].time
+          ) {
+            k1 = keyframes[i];
+            k2 = keyframes[i + 1];
+            break;
+          }
+        }
+
+        const span = k2.time - k1.time;
+        const tRaw = span === 0 ? 0 : (playhead - k1.time) / span;
+        const t = easeInOut(tRaw);
+
+        const newTarget = {};
+
+        for (let key in k1.params) {
+          const a = k1.params[key];
+          const b = k2.params[key];
+
+          if (typeof a === "number") {
+            newTarget[key] = lerp(a, b, t);
+          } else {
+            newTarget[key] = b;
+          }
+        }
+
+        // 👇 to wpinasz w Twój system //
+        target = newTarget;
+        transitionProgress = 1; // natychmiast ustawiamy state
       }
 
 
@@ -254,7 +371,7 @@ const sketches = {
     //Z_GAP = bass === 0 ? paramsRef.current.Z_GAP : (paramsRef.current.Z_GAP + 1) * (1 + bass * 50);
     //Z_GAP = paramsRef.current.Z_GAP;
      
-     console.log(state.X_GAP, "paramsRef.current.X_GAP", X_GAP)
+     // console.log(state.X_GAP, "paramsRef.current.X_GAP", X_GAP)
      
      
      
@@ -466,13 +583,16 @@ sketch.directionalLight(
       // daj:
       // let sc = sketch.sin(sketch.millis() * 0.002);  
       const speed = 20;
-      console.log("sketch.millis()", sketch.millis())
+      // console.log("sketch.millis()", sketch.millis())
       if(! state.freeze) {
          incrementerForAnimation += speed;
          //sc = sketch.sin(sketch.millis() * 0.002);  
          sc = sketch.sin(incrementerForAnimation * 0.002);  
         
       }  
+
+
+      
 			
       let i = 1;
       
@@ -552,8 +672,68 @@ sketch.directionalLight(
 				}
 			}
 
-          
-		}	
+          // 🧾 HUD / debug text (top-right corner)
+//           sketch.fill(255, 255, 255, 255);
+//       sketch.push();
+//       sketch.resetMatrix(); // 🔥 mega ważne w WEBGL
+
+//       sketch.fill(255);
+//       sketch.noStroke();
+//       sketch.textSize(14);
+//       sketch.textAlign(sketch.LEFT, sketch.TOP);
+
+
+//       let status = `
+//       REC: ${isRecording}
+//       PLAY: ${isPlaying}
+//       frames: ${keyframes.length}
+//       time: ${playhead.toFixed(2)}
+//       `;
+
+//       // 👇 KLUCZOWE
+// sketch.translate(-sketch.width / 2, -sketch.height / 2);
+
+// sketch.text(status, 10, 10);
+
+//       sketch.pop();
+
+		
+sketch.push();
+sketch.resetMatrix();
+sketch.translate(-sketch.width / 2, -sketch.height / 2);
+
+//sketch.hint(sketch.DISABLE_DEPTH_TEST);
+
+// sketch.fill(255);
+// sketch.noStroke();
+// sketch.textSize(14);
+
+//       let status = `
+//       REC: ${isRecording}
+//       PLAY: ${isPlaying}
+//       frames: ${keyframes.length}
+//       time: ${playhead.toFixed(2)}
+//       `;
+
+//        let status2 = [
+//         `REC: ${isRecording}`,
+//         `PLAY: ${isPlaying}`,
+//       `frames: ${keyframes.length}`,
+//       `time: ${playhead.toFixed(2)}`
+//        ]
+//   window.recordingStatus = status2;
+
+// sketch.text(status, 10, 10);
+
+// sketch.pop();
+       window._debug = {
+          isRecording,
+          isPlaying,
+          frames: keyframes.length,
+          time: playhead.toFixed(2)
+
+       }
+    }	
 
 		function isFrontWall(x, y, z) {
 			return z == 0 && y != 0 && y != Y_ROWS - 1 && x != 0 && x != X_ROWS - 1;
@@ -654,8 +834,11 @@ sketch.directionalLight(
 
       sketch.pop();
     }
+    
     },
+    
   }
+  
 };
 
 // --- Controls Panel ---
@@ -733,7 +916,56 @@ function Controls({ config, values, setValues }) {
 //   return <div ref={containerRef} />;
 // }
 
-function SketchView({ sketchConfig, params, bands }) {
+// function DebugOverlay({ params, bands }) {
+//   const { bass, mid, high } = bands.current || {};
+//   const debugText = window._debug || {};
+//   return (
+//     <div
+//       style={{
+//         position: "absolute",
+//         top: 100,
+//         left: 30,
+//         color: "white",
+//         fontFamily: "monospace",
+//         fontSize: "12px",
+//         background: "rgba(0,0,0,0.4)",
+//         padding: "10px",
+//         borderRadius: "6px",
+//         pointerEvents: "none", // 🔥 nie blokuje klików
+//       }}
+//     >
+//       <div>🎧 bass: {bass?.toFixed(2)}</div>
+//       <div>🎧 mid: {mid?.toFixed(2)}</div>
+//       <div>🎧 high: {high?.toFixed(2)}</div>
+
+//       <hr />
+
+//       <div>X_SIZE: {params.X_SIZE}</div>
+//       <div>Y_SIZE: {params.Y_SIZE}</div>
+//       <div>Z_SIZE: {params.Z_SIZE}</div>
+
+//       <div>rows: {params.X_ROWS}</div>
+
+      
+//       {debugText && Object.entries(debugText).map((key, value) => {
+//               return <div >{key}: {value}</div>
+//           })}
+//     </div>
+//   );
+// }
+
+function DebugOverlay({ params, bands, debug }) {
+  return (
+    <div style={{ position: "absolute", top: 100, left: 30 }}>
+      <div>REC: {String(debug.isRecording)}</div>
+      <div>PLAY: {String(debug.isPlaying)}</div>
+      <div>frames: {debug.frames}</div>
+      <div>time: {debug.time?.toFixed(2)}</div>
+    </div>
+  );
+}
+
+function SketchView({ sketchConfig, params, bands, onDebug }) {
   const containerRef = useRef();
   const p5Instance = useRef(null);
   const paramsRef = useRef(params);
@@ -752,7 +984,7 @@ function SketchView({ sketchConfig, params, bands }) {
     }
 
     const sketch = (p) => {
-      sketchConfig.sketch(p, paramsRef, bandsRef); // 👈 przekazujemy REF, nie state
+      sketchConfig.sketch(p, paramsRef, bandsRef, onDebug); // 👈 przekazujemy REF, nie state
     };
 
     p5Instance.current = new p5(sketch, containerRef.current);
@@ -763,7 +995,16 @@ function SketchView({ sketchConfig, params, bands }) {
     };
   }, [sketchConfig]); // ❗ brak params
 
-  return <div ref={containerRef} />;
+  //return <div ref={containerRef} />;
+  return (
+    <div className="relative">
+      {/* 🎨 Canvas */}
+      <div ref={containerRef} />
+
+      {/* 🧾 DEBUG OVERLAY */}
+      {/* <DebugOverlay params={params} bands={bands} /> */}
+    </div> 
+  )
 }
 
 // --- Sidebar ---
@@ -790,6 +1031,9 @@ import { useAudioSystem } from "./hooks/useAudioSystem";
 
 // --- Main App ---
 export default function App() {
+  // FOR TRACKING RECORDING
+  const [debug, setDebug] = useState({});
+
   const { playKick, bandsRef } = useAudioSystem();
   useKeyPress("Space", playKick);
 
@@ -801,7 +1045,7 @@ export default function App() {
   const [currentSketch, setCurrentSketch] = useState("dupa");
   const sketchConfig = sketches[currentSketch];
 
-  console.log("bandsRef", bandsRef)
+  // console.log("bandsRef", bandsRef)
 
   const initialValues = Object.fromEntries(
     Object.entries(sketchConfig.controls).map(([k, v]) => [k, v.default])
@@ -821,7 +1065,20 @@ export default function App() {
 
     reader.onload = (e) => {
       try {
+        // const parsed = JSON.parse(e.target.result);
+
         const parsed = JSON.parse(e.target.result);
+
+        // 🎬 jeśli to animacja (array keyframes)
+        if (Array.isArray(parsed)) {
+          console.log("Wczytano ANIMACJĘ");
+
+          if (window.__setKeyframes) {
+            window.__setKeyframes(parsed);
+          }
+
+          return;
+        }
 
         console.log("Wczytany JSON:", parsed);
 
@@ -865,11 +1122,21 @@ export default function App() {
       URL.revokeObjectURL(url);
   }
 
+  const debugText = window._debug || {};
+  console.log("debugText", debugText)
+  console.log("obj ", Object.entries(debugText));
   return (
     <div className="app">
       {/* Left: Canvas */}
       <div className="canvas-container">
-        <SketchView sketchConfig={sketchConfig} bands={bandsRef} params={params} name={sketchConfig.name}/>
+        <SketchView 
+            sketchConfig={sketchConfig} 
+            bands={bandsRef}
+            params={params}
+            name={sketchConfig.name}
+            onDebug={setDebug}
+        />
+        <DebugOverlay params={params} bands={bandsRef} debug={debug} />
       </div>
       <div className="controls"><Controls config={sketchConfig.controls} values={params} setValues={setParams} /></div>
       <div>
@@ -878,7 +1145,16 @@ export default function App() {
             downloadJSON(JSON.stringify(params), "some_bad_ass_file.json")})}>{"SAVE SETTINGS"}
           </button>
           <br/>
+          <button onClick={() => {
+            console.log("KEYFRAMES:", window.__keyframes);
+            downloadJSON(JSON.stringify(window.__keyframes), "animation.json");
+          }}>
+            SAVE ANIMATION
+          </button>
+          <br/>
           <input type="file" accept="application/json" onChange={handleFileUpload} />
+          <p>{"status: "}</p>
+          
       </div>
       {/* Right: Controls + List */}
       <div className="panel">

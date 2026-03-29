@@ -92,9 +92,14 @@ const sketches = {
 
 
     },
-    sketch: (sketch, paramsRef, bandsRef, onDebug) => {
-        const SCREEN_WIDTH = 800;
-        const SCREEN_HEIGHT = 800;
+    sketch: (sketch, paramsRef, bandsRef, onDebug, screenWidth, screenHeight) => {
+        // const SCREEN_WIDTH = 800;
+        // const SCREEN_HEIGHT = 800;
+        // console.log(
+        //   "SETTING SKETCH WITH SCREEN_WIDTHL: ", screenWidth, screenWidth, "screenHeight", screenHeight
+        // )
+        const SCREEN_WIDTH = screenWidth //1280;
+        const SCREEN_HEIGHT = screenHeight// 440;
 
         let X_SIZE = paramsRef.current.X_SIZE;
         let Y_SIZE = paramsRef.current.Y_SIZE;
@@ -844,22 +849,39 @@ sketch.translate(-sketch.width / 2, -sketch.height / 2);
 // --- Controls Panel ---
 function Controls({ config, values, setValues }) {
   return (
+    <div className="controls-panel">
     <div className="p-4 border-l border-gray-700">
       <h2 className="text-lg mb-2">Controls</h2>
       {Object.entries(config).map(([key, conf]) => {
         if (conf.type === "range") {
           return (
-            <div key={key} className="mb-3">
-              <label>{key}: {values[key]}</label>
-              <input
-                type="range"
+            // <div key={key} className={"mb-3 slider-container"}>
+            //   <label className={"slider-label"}>{key}: {values[key]}</label>
+            //   <input
+            //     type="range"
+            //     min={conf.min}
+            //     max={conf.max}
+            //     value={values[key]}
+            //     onChange={(e) =>
+            //       setValues({ ...values, [key]: Number(e.target.value) })
+            //     }
+            //   />
+            // </div>
+            <div key={key} className="control">
+              <div className="label-row">
+                <span className="slider-label">{key}</span>
+                <span className="slider-value">{values[key]}</span>
+              </div>
+              <input 
+                className="futuristic-slider" 
+                type="range" 
                 min={conf.min}
                 max={conf.max}
                 value={values[key]}
-                onChange={(e) =>
-                  setValues({ ...values, [key]: Number(e.target.value) })
+                onChange={(e) => 
+                  setValues({ ...values, [key]: Number(e.target.value)})
                 }
-              />
+                />
             </div>
           );
         }
@@ -883,6 +905,7 @@ function Controls({ config, values, setValues }) {
 
         return null;
       })}
+    </div>
     </div>
   );
 }
@@ -965,7 +988,7 @@ function DebugOverlay({ params, bands, debug }) {
   );
 }
 
-function SketchView({ sketchConfig, params, bands, onDebug }) {
+function SketchView({ sketchConfig, params, bands, onDebug, screenWidth, screenHeigh }) {
   const containerRef = useRef();
   const p5Instance = useRef(null);
   const paramsRef = useRef(params);
@@ -984,7 +1007,7 @@ function SketchView({ sketchConfig, params, bands, onDebug }) {
     }
 
     const sketch = (p) => {
-      sketchConfig.sketch(p, paramsRef, bandsRef, onDebug); // 👈 przekazujemy REF, nie state
+      sketchConfig.sketch(p, paramsRef, bandsRef, onDebug, screenWidth, screenHeigh); // 👈 przekazujemy REF, nie state
     };
 
     p5Instance.current = new p5(sketch, containerRef.current);
@@ -1041,6 +1064,36 @@ export default function App() {
   // SPACJA:
   //useKeyPress("Space", playKick);
   //const { playKick } = useKick();
+
+
+  const containerRef = useRef(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // const containerRef = useRef(null);
+  // const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateSize = () => {
+      const rect = el.getBoundingClientRect();
+      console.log("ON LOAD, rec.width:", rect.width)
+      setSize({
+        width: rect.width,
+        height: rect.height,
+      });
+      setIsLoaded(true);
+    };
+
+    updateSize(); // initial
+
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
+  }, []);
+
+  
   
   const [currentSketch, setCurrentSketch] = useState("dupa");
   const sketchConfig = sketches[currentSketch];
@@ -1123,22 +1176,41 @@ export default function App() {
   }
 
   const debugText = window._debug || {};
-  console.log("debugText", debugText)
-  console.log("obj ", Object.entries(debugText));
+  //console.log("debugText", debugText)
+  //console.log("obj ", Object.entries(debugText));
+  // const getWidth = () => {
+  //    const el = document.getElementsByClassName("canvas-container")[0];
+  //   const style = window.getComputedStyle(el);
+  //   console.log("Width:", style.width);
+  //   return style.width;
+  // }
+  // const getHeight = () => {
+  //   const el = document.getElementsByClassName("canvas-container")[0];
+  //   const style = window.getComputedStyle(el);
+  //   console.log("height:", style.height);
+  //   return style.height;
+  // }
+ 
+  //console.log("calling SketchView with size width", size.width, "size height", size.height)
+  
   return (
-    <div className="app">
+    <div className="app" ref={containerRef}>
       {/* Left: Canvas */}
-      <div className="canvas-container">
+      {isLoaded && (<div className="canvas-container" >
         <SketchView 
             sketchConfig={sketchConfig} 
             bands={bandsRef}
             params={params}
             name={sketchConfig.name}
             onDebug={setDebug}
+            screenWidth={size.width}
+            screenHeigh={size.height}
         />
         <DebugOverlay params={params} bands={bandsRef} debug={debug} />
-      </div>
-      <div className="controls"><Controls config={sketchConfig.controls} values={params} setValues={setParams} /></div>
+        {/* <div className="controls">
+          <Controls config={sketchConfig.controls} values={params} setValues={setParams} />
+        </div> */}
+      </div>)}
       <div>
           <button onClick={(() => {
             console.log('params', params)

@@ -140,7 +140,7 @@ code {
   display: flex;
   height: 100vh;
   width: 100vw;
-  border: thin solid green;
+  
 }
 
 /* LEFT: canvas */
@@ -151,11 +151,15 @@ code {
   justify-content: center;
   overflow: hidden;
   border: thin solid red;
+  padding: 0;
+  
 }
 
 .canvas-container canvas {
   max-width: 100%;
   max-height: 100%;
+
+  border: thin solid yellow;
 }
 
 /* RIGHT PANEL */
@@ -165,12 +169,14 @@ code {
   flex-direction: column;
   border-left: 1px solid #222;
   background: #111;
+  border: thin solid pink;
 }
 
 /* CONTROLS */
 .controls {
   padding: 16px;
   border-bottom: 1px solid #222;
+  margin-top: 450px;
 }
 
 .controls h2 {
@@ -195,6 +201,169 @@ code {
 
 .control input[type="checkbox"] {
   margin-right: 6px;
+}
+
+/* RESET */
+input[type=range] {
+  -webkit-appearance: none;
+  background: transparent;
+  width: 200px;
+}
+
+/* TRACK (linia) */
+input[type=range]::-webkit-slider-runnable-track {
+  height: 2px;
+  background: #888;
+  border-radius: 1px;
+}
+
+input[type=range]::-moz-range-track {
+  height: 2px;
+  background: #888;
+}
+
+/* THUMB (trójkąt) */
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  margin-top: -6px;
+  
+  width: 0;
+  height: 0;
+  
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 14px solid #ffffff; /* kolor trójkąta */
+  
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+input[type=range]::-moz-range-thumb {
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 14px solid #ffffff;
+  cursor: pointer;
+}
+
+/* HOVER = futurystyczny efekt */
+input[type=range]::-webkit-slider-thumb:hover {
+  border-bottom-color: #00ffff;
+  filter: drop-shadow(0 0 6px #00ffff);
+}
+
+.mb-3 {
+  /* border: thin solid green; */
+   width: 130px;
+}
+
+/* PANEL */
+.controls-panel {
+  width: 220px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* mały odstęp */
+}
+
+/* BLOK JEDNEGO SLIDERA */
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 2px; /* ultra kompakt */
+}
+
+/* LABEL + VALUE */
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* LABEL */
+.slider-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #666;
+  font-family: 'Orbitron', sans-serif;
+}
+
+/* VALUE */
+.slider-value {
+  font-size: 9px;
+  color: #888;
+  font-family: monospace;
+}
+
+/* SLIDER */
+.futuristic-slider {
+  width: 100%;
+  -webkit-appearance: none;
+  background: transparent;
+}
+
+/* TRACK */
+.futuristic-slider::-webkit-slider-runnable-track {
+  height: 1px;
+  background: #444;
+}
+
+/* THUMB (trójkąt) */
+.futuristic-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  margin-top: -5px;
+
+  width: 0;
+  height: 0;
+
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 10px solid #ccc;
+
+  transition: 0.2s;
+}
+
+/* HOVER */
+.futuristic-slider:hover::-webkit-slider-thumb {
+  border-bottom-color: #00ffff;
+  filter: drop-shadow(0 0 4px #00ffff);
+}
+
+.controls-panel {
+  transform: scale(0.65); /* spróbuj 0.75 jeśli dalej za duże */
+  transform-origin: top right;
+}
+
+
+#defaultCanvas0 {
+  /* border: 43px solid pink; */
+}
+
+
+/* transform: scale(0.8); /* spróbuj 0.75 jeśli dalej za duże */
+/* transform-origin: top right; */ */
+
+
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider-label {
+  font-size: 10px;
+  color: #aaa;
+  font-family: 'Orbitron', 'Rajdhani', sans-serif;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+/* lekki futurystyczny efekt */
+.slider-label:hover {
+  color: #00ffff;
+  text-shadow: 0 0 6px #00ffff;
 }
 
 /* SKETCH LIST */

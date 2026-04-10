@@ -10,7 +10,7 @@ export function useAudioEngine() {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const analyser = ctx.createAnalyser();
 
-    analyser.fftSize = 1024;
+    analyser.fftSize = 256;
 
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);

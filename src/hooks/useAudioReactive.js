@@ -21,13 +21,28 @@ export function useAudioReactive() {
   return { bands };
 }
 
+// function getBands(analyser, dataArray) {
+//   analyser.getByteFrequencyData(dataArray);
+
+//   return {
+//     bass: getEnergy(dataArray, 0, 20),
+//     mid: getEnergy(dataArray, 20, 100),
+//     high: getEnergy(dataArray, 100, 256),
+//   };
+// }
 function getBands(analyser, dataArray) {
   analyser.getByteFrequencyData(dataArray);
 
   return {
-    bass: getEnergy(dataArray, 0, 20),
-    mid: getEnergy(dataArray, 20, 100),
-    high: getEnergy(dataArray, 100, 256),
+    // Czysty, głęboki kick (uderzenie stopy)
+    bass: getEnergy(dataArray, 2, 10), 
+    
+    // "Puknięcie" werbla / środek pasma
+    // Zaczynamy wyżej, żeby nie łapać ogona basu
+    mid: getEnergy(dataArray, 40, 120), 
+    
+    // Cyknięcia hi-hatu i talerzy
+    high: getEnergy(dataArray, 180, 250),
   };
 }
 

@@ -192,7 +192,7 @@ code {
   display: block;
   font-size: 12px;
   margin-bottom: 4px;
-  color: #aaa;
+  color: #1e61dd;
 }
 
 .control input[type="range"] {
@@ -204,48 +204,42 @@ code {
 }
 
 /* RESET */
-input[type=range] {
+/* input[type=range] {
   -webkit-appearance: none;
   background: transparent;
   width: 200px;
-}
+} */
 
 /* TRACK (linia) */
 input[type=range]::-webkit-slider-runnable-track {
-  height: 2px;
-  background: #888;
-  border-radius: 1px;
+  height: 1px;
+  
+  /* background: #888;
+  border-radius: 1px; */
 }
 
-input[type=range]::-moz-range-track {
+/* input[type=range]::-moz-range-track {
   height: 2px;
   background: #888;
-}
+} */
 
 /* THUMB (trójkąt) */
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  margin-top: -6px;
+  margin-top: -10px;
   
   width: 0;
   height: 0;
   
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-bottom: 14px solid #ffffff; /* kolor trójkąta */
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 10px solid #ffffff; /* kolor trójkąta */
   
   cursor: pointer;
   transition: 0.2s;
 }
 
-input[type=range]::-moz-range-thumb {
-  width: 0;
-  height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-bottom: 14px solid #ffffff;
-  cursor: pointer;
-}
+
 
 /* HOVER = futurystyczny efekt */
 input[type=range]::-webkit-slider-thumb:hover {
@@ -257,6 +251,21 @@ input[type=range]::-webkit-slider-thumb:hover {
   /* border: thin solid green; */
    width: 130px;
 }
+.relative {
+  position: relative;
+}
+
+.test {
+  position: absolute;
+  top: 0;
+  right: 0; /* przykleja do prawej krawędzi canvasa */
+  
+  background: rgba(255,255,255,0.2);
+  height: 100vh;
+  color: white;
+  width: 300px;
+  padding: 10px;
+}
 
 /* PANEL */
 .controls-panel {
@@ -267,11 +276,82 @@ input[type=range]::-webkit-slider-thumb:hover {
   gap: 8px; /* mały odstęp */
 }
 
+.controls_dupa {
+  width: 200px;
+  border: thin solid green;
+  height: 100vh;
+}
+
+.controls2 {
+  /* position: absolute;
+  top: 0;
+  right: -50px; 
+  opacity: 0.8;;
+  height: 100vh;
+  color: white;
+  width: 300px;
+  padding: 10px; */
+
+   position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 240px;
+
+  padding: 16px;
+
+  /* background: rgba(10, 10, 20, 0.55); półprzezroczyste */
+  opacity: 0.9;
+  backdrop-filter: blur(12px); /* 🔥 robi robotę */
+  -webkit-backdrop-filter: blur(12px);
+
+  /* border-left: 1px solid rgba(255, 255, 255, 0.08); */
+
+  color: #d5c7c7;
+}
+
+.controls2 {
+  box-shadow: -10px 0 30px rgba(124, 58, 237, 0.2);
+}
+
+.controls2 input[type="range"] {
+  width: 100%;
+  accent-color: #7c3aed; /* fiolet */;
+}
+
+.controls2 input[type="range"]::-webkit-slider-thumb {
+  box-shadow: 0 0 8px #7c3aed;
+}
+
+.controls2::before {
+  content: "";
+  position: absolute;
+  left: -20px;
+  top: 0;
+  width: 20px;
+  height: 100%;
+
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(10,10,20,0.55)
+  );
+}
+
+.controls-panel2 {
+  width: 220px;
+  padding: 12px;
+  border: thin solid pink;
+  background-color: transparent;
+}
+
+
 /* BLOK JEDNEGO SLIDERA */
 .control {
   display: flex;
   flex-direction: column;
   gap: 2px; /* ultra kompakt */
+  
 }
 
 /* LABEL + VALUE */
@@ -282,12 +362,13 @@ input[type=range]::-webkit-slider-thumb:hover {
 }
 
 /* LABEL */
-.slider-label {
+/* .slider-label {
   font-size: 9px;
   letter-spacing: 2px;
   color: #666;
+  
   font-family: 'Orbitron', sans-serif;
-}
+} */
 
 /* VALUE */
 .slider-value {
@@ -331,8 +412,11 @@ input[type=range]::-webkit-slider-thumb:hover {
 }
 
 .controls-panel {
-  transform: scale(0.65); /* spróbuj 0.75 jeśli dalej za duże */
+  /* transform: scale(0.65); spróbuj 0.75 jeśli dalej za duże */
+  /* transform-origin: top right; */
+  transform: scale(0.75);
   transform-origin: top right;
+   
 }
 
 
@@ -357,7 +441,7 @@ input[type=range]::-webkit-slider-thumb:hover {
   font-family: 'Orbitron', 'Rajdhani', sans-serif;
   letter-spacing: 2px;
   text-transform: uppercase;
-  opacity: 0.8;
+  opacity: 1;
 }
 
 /* lekki futurystyczny efekt */

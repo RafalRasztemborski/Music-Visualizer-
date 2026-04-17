@@ -2,8 +2,6 @@ import React, { useState, useRef, useEffect } from "react";
 import p5 from "p5";
 import { useAudioReactive } from "./hooks/useAudioReactive";
 
-
-
 // --- Example Sketches ---
 const sketches = {
   bouncingBall: {
@@ -94,6 +92,20 @@ const sketches = {
       // light_6: { type: "range", min: -10, max: 10, default: -1 }
 
     },
+    // preload: (p) => {
+    //  console.log("PRELOAD DZIAŁA");
+    //   // Zwracamy obiekt z załadowanymi zasobami
+    //   return {
+    //     myShader: p.loadShader('/shader/shader.vert', '/shader/shader.frag')
+    //   };
+    //  },
+    //  preload: (p) => {
+    //   console.log("PRELOAD DZIAŁA");
+    //   return {};
+    // // return {
+    // //   //shader: p.loadShader('/shader/shader.vert', '/shader/shader.frag')
+    // // };
+    //},
     sketch: (sketch, paramsRef, bandsRef, onDebug, screenWidth, screenHeight) => {
         const SCREEN_WIDTH = screenWidth //1280;
         const SCREEN_HEIGHT = screenHeight// 440;
@@ -188,8 +200,6 @@ const sketches = {
        // inicjalizacja z aktualnych sliderów
       state = { ...paramsRef.current };
       target = { ...paramsRef.current };
-
-
 
       sketch.keyPressed = () => {
         if (sketch.key === 'r') {
@@ -376,7 +386,7 @@ const sketches = {
         beatProgress = 0;
       }
       if (!isBeatActive) {
-        beatProgress *= 0.9; // decay do 0
+        beatProgress *= 0.8; // decay do 0
       }
       if (isBeatActive) {
         beatProgress += dt / beatDuration;
@@ -393,10 +403,6 @@ const sketches = {
 
     const t = easeInOut(beatProgress);
       prevBass = bass;
-
-
-      console.log("T:", t)
-
         // DEBUGING    
         onDebug({
           isRecording,
@@ -481,21 +487,10 @@ const sketches = {
             if(incrementerForAnimation >= 0) {
               incrementerForAnimation *= cooldown;
             }
-            
-            //sc *= decay;
           }
           sc = incrementerForAnimation
-          //sc = incrementerForAnimation * 0.002;  
-          // if(sc < 0.01) {
-          //   sc = 0;
-          // }
-          
         }  else {
-          //incrementerForAnimation += bass 
-          
-           sc = sketch.sin(t * 3);
-           //sc = easeInOut(smoothBass);
-          //sc = sketch.cos(t * 3);
+          sc = sketch.sin(t * 3);
         }
           
 
@@ -581,7 +576,7 @@ const sketches = {
                 setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, -_x, 0, 0);
                 if (isVisible(x_pos, y_pos, z_pos)) {
                   // TU CIEKAWE WKLESNIECIE
-                  drawBox(x_pos - (sc * _x ), y_pos, z_pos, -X_SIZE , Y_SIZE, Z_SIZE, -_x, 0, 0)
+                  drawBox(x_pos - (sc * _x * 2), y_pos, z_pos, -X_SIZE , Y_SIZE, Z_SIZE, -_x, 0, 0)
                 }
               } else 
               if (isRightWall(x, y, z)) {	
@@ -593,7 +588,7 @@ const sketches = {
 
                 setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, _x, 0, 0);
                 if (isVisible(x_pos, y_pos, z_pos)) {
-                  drawBox(x_pos  + (sc * _x ), y_pos, z_pos, -X_SIZE , Y_SIZE, Z_SIZE, -_x, 0, 0)
+                  drawBox(x_pos  + (sc * _x * 2), y_pos, z_pos, -X_SIZE , Y_SIZE, Z_SIZE, -_x, 0, 0)
                 }
               } else 
               if (isTopWall(x, y, z)) {	
@@ -685,18 +680,6 @@ function Controls({ config, values, setValues }) {
       {Object.entries(config).map(([key, conf]) => {
         if (conf.type === "range") {
           return (
-            // <div key={key} className={"mb-3 slider-container"}>
-            //   <label className={"slider-label"}>{key}: {values[key]}</label>
-            //   <input
-            //     type="range"
-            //     min={conf.min}
-            //     max={conf.max}
-            //     value={values[key]}
-            //     onChange={(e) =>
-            //       setValues({ ...values, [key]: Number(e.target.value) })
-            //     }
-            //   />
-            // </div>
             <div key={key} className="control">
               <div className="label-row">
                 <span className="slider-label">{key}</span>
@@ -793,7 +776,30 @@ function SketchView({ sketchConfig, params, bands, onDebug, screenWidth, screenH
         //   p.shader(myShader);
         //   p.rect(-SCREEN_WIDTH/2, -SCREEN_HEIGHT/2, SCREEN_WIDTH, SCREEN_HEIGHT);
         // };
-        sketchConfig.sketch(p, paramsRef, bandsRef, onDebug, screenWidth, screenHeigh); // 👈 przekazujemy REF, nie state
+
+  let assets = {};
+
+  // KLUCZOWA ZMIANA: p5 musi zobaczyć p.preload ZANIM przejdzie do setup
+  if (sketchConfig.preload) {
+    p.preload = () => {
+      console.log("Preload p5 się uruchamia...");
+      assets = sketchConfig.preload(p) || {};
+    };
+  }
+
+  // Wywołujemy definicję reszty szkicu
+  sketchConfig.sketch(
+    p,
+    paramsRef,
+    bandsRef,
+    onDebug,
+    screenWidth,
+    screenHeigh, // Literówka w Twoim kodzie? (powinno być screenHeight)
+    assets
+  );
+       
+
+        //sketchConfig.sketch(p, paramsRef, bandsRef, onDebug, screenWidth, screenHeigh); // 👈 przekazujemy REF, nie state
     };
 
     p5Instance.current = new p5(sketch, containerRef.current);
@@ -855,18 +861,9 @@ export default function App() {
   useKeyPress("Space", playKick);
   useKeyPress("KeyS", playSnare);
 
-  //const { bands } = useAudioReactive(); 
-  // SPACJA:
-  //useKeyPress("Space", playKick);
-  //const { playKick } = useKick();
-
-
   const containerRef = useRef(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [isLoaded, setIsLoaded] = useState(false);
-
-  // const containerRef = useRef(null);
-  // const [size, setSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
     const el = containerRef.current;
@@ -1022,24 +1019,6 @@ bandsRef.current = {
       // 5. Zwalniamy pamięć
       URL.revokeObjectURL(url);
   }
-
-  const debugText = window._debug || {};
-  //console.log("debugText", debugText)
-  //console.log("obj ", Object.entries(debugText));
-  // const getWidth = () => {
-  //    const el = document.getElementsByClassName("canvas-container")[0];
-  //   const style = window.getComputedStyle(el);
-  //   console.log("Width:", style.width);
-  //   return style.width;
-  // }
-  // const getHeight = () => {
-  //   const el = document.getElementsByClassName("canvas-container")[0];
-  //   const style = window.getComputedStyle(el);
-  //   console.log("height:", style.height);
-  //   return style.height;
-  // }
- 
-  //console.log("calling SketchView with size width", size.width, "size height", size.height)
 
 const analyserRef = useRef(null);
 const dataArrayRef = useRef(null);

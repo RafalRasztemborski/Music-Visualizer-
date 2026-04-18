@@ -59,15 +59,13 @@ const sketches = {
       spinY: { type: "checkbox", default: false },
       spinZ: { type: "checkbox", default: false },
 
-      // stroke: {type: "range", min: 1, max: 100, default: 5},
+      stroke: {type: "range", min: 1, max: 100, default: 5},
       
       rotationSpped: { type: "range", min: 1, max: 1000, default: 20 },
 
-      bg_fadeOut: { type: "range", min: 0, max: 255, default: 80 },
+      bg_fadeOut: { type: "range", min: 0, max: 100, default: 80 },
 
       dynamicLight: {type: "checkbox", default: true},
-
-      beatDetector: {type: "checkbox", default: true},
 
       z_position: { type: "range", min: -130, max: 2000, default: 0 },
       Crazy_z_position: { type: "range", min: -50, max: 50, default: 0 },
@@ -79,22 +77,31 @@ const sketches = {
       freeze: {type: "checkbox", default: false},
       transitionDuraion: { type: "range", min: 0, max: 100, default: 0 },
 
-      // colorR: { type: "range", min: 0, max: 255, default: 0 },
-      // colorG: { type: "range", min: 0, max: 255, default: 255 },
-      // colorB: { type: "range", min: 0, max: 255, default: 200 },
-      // opacity: { type: "range", min: 0, max: 255, default: 255 }, 
+      colorR: { type: "range", min: 0, max: 255, default: 0 },
+      colorG: { type: "range", min: 0, max: 255, default: 255 },
+      colorB: { type: "range", min: 0, max: 255, default: 200 },
+      opacity: { type: "range", min: 0, max: 255, default: 255 }, 
 
 
 
-      // light_1: { type: "range", min: 0, max: 255, default: 0 },
-      // light_2: { type: "range", min: 0, max: 255, default: 255 },
-      // light_3: { type: "range", min: 0, max: 255, default: 255 },
-      // light_4: { type: "range", min: -10, max: 10, default: -0.5 },
-      // light_5: { type: "range", min: -10, max: 10, default: 0.5 },
-      // light_6: { type: "range", min: -10, max: 10, default: -1 }
+      light_1: { type: "range", min: 0, max: 255, default: 0 },
+      light_2: { type: "range", min: 0, max: 255, default: 255 },
+      light_3: { type: "range", min: 0, max: 255, default: 255 },
+      light_4: { type: "range", min: -10, max: 10, default: -0.5 },
+      light_5: { type: "range", min: -10, max: 10, default: 0.5 },
+      light_6: { type: "range", min: -10, max: 10, default: -1 }
 
     },
     sketch: (sketch, paramsRef, bandsRef, onDebug, screenWidth, screenHeight) => {
+      
+        // optymalizacja fps
+        //sketch.pixelDensity(1);
+        // const SCREEN_WIDTH = 800;
+        // const SCREEN_HEIGHT = 800;
+        // console.log(
+        //   "SETTING SKETCH WITH SCREEN_WIDTHL: ", screenWidth, screenWidth, "screenHeight", screenHeight
+        // )
+        let font;
         const SCREEN_WIDTH = screenWidth //1280;
         const SCREEN_HEIGHT = screenHeight// 440;
 
@@ -118,14 +125,12 @@ const sketches = {
         let rotY = 0;
         let rotZ = 0;
 
-        // MUSIC
-        let smoothBass = 0;
-        let bassVelocity = 0;
-        let bassAnim = 0;
-        let beatProgress = 0;   // 0 → 1
-        let isBeatActive = false;
-        let beatDuration = 0.35; // sekundy (czas animacji po uderzeniu)
-        let prevBass = 0;
+        let kick = 0;
+        let snare = 0;
+         
+        let lastKick = 0;
+        let lastSnare = 0;
+
 
         let stroke = paramsRef.current.stroke;
 
@@ -136,6 +141,8 @@ const sketches = {
         // STATE
         let state = {};
         let target = {};
+
+        console.log("paramsRef.current.transitionDuraion", paramsRef.current.transitionDuraion)
 
         let transitionProgress = 1;
         let transitionDuration =  1.5; //paramsRef.current.transitionDuraion; // sekundy
@@ -171,20 +178,20 @@ const sketches = {
             params: { ...paramsRef.current }
           });
       }
-
-    
-    
-    let myShader;
-    // sketch.preload = function() {
-    //   // myShader = sketch.loadShader('./shader/shader.vert', './shader/shader.frag');
-    // };
+      
     sketch.setup = function () {
       
-      //myShader = sketch.loadShader('/shader/shader.vert', '/shader/shader.frag')
       sketch.createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT, sketch.WEBGL);
-      //sketch.hint(sketch.ENABLE_DEPTH_TEST); // sketch.hint is not a function
-      sketch.background(25); // tylko raz
-        //sketch.rectMode(sketch.CENTER);
+       
+       sketch.loadFont('/fonts/Roboto-Regular.ttf', (loadedFont) => {
+          font = loadedFont;
+          sketch.textFont(font);
+          console.log("FONT LOADED ✅", font);
+      });
+
+      sketch.canvas.setAttribute('tabindex', '0');
+      sketch.canvas.focus();
+
        // inicjalizacja z aktualnych sliderów
       state = { ...paramsRef.current };
       target = { ...paramsRef.current };
@@ -210,16 +217,98 @@ const sketches = {
           console.log("PLAY:", isPlaying);
         }
       };
-  };
 
-    let fpsHistory = [];
+        // Background that stays from last pring 
+      // for (let i = 0; i < sketch.height; i++) {
+      //   let inter = i / sketch.height;
+      //   let c = sketch.lerpColor(
+      //     sketch.color(5, 10, 30),
+      //     sketch.color(0, 0, 0),
+      //     inter
+      //   );
+      //   sketch.stroke(c);
+      //   sketch.line(-sketch.width, i - sketch.height/2, sketch.width, i - sketch.height/2);
+      // }
+
+      const presets = {
+        neon: {
+          colorR: 0,
+          colorG: 255,
+          colorB: 220,
+          X_GAP: 2,
+          Y_GAP: 2,
+          Z_GAP: 2,
+          Y_ROTATE: 30
+        },
+
+        minimal: {
+          colorR: 200,
+          colorG: 200,
+          colorB: 255,
+          X_GAP: 0,
+          Y_GAP: 0,
+          Z_GAP: 0,
+          Y_ROTATE: 10
+        }
+      };
+    
+    };
+
+    sketch.draw2 = function() {
+       // Nie dziala wtedy BG overlay
+      if(font) {
+          sketch.background(25);
+          sketch.push();
+          sketch.resetMatrix();
+          //sketch.hint(sketch.DISABLE_DEPTH_TEST);
+          sketch.translate(-sketch.width / 2, -sketch.height / 2);
+
+          sketch.fill(255);
+          sketch.noStroke();
+          sketch.textSize(24);
+
+          sketch.text("FPS: " + sketch.frameRate().toFixed(1), 50, 50);
+
+          sketch.pop();
+
+      }
+    }
+let fpsHistory = [];
     sketch.draw = function() { 
 
-     
-        let hasChanged = false;
-      
-          
-          // 🔹 TRAIL (zamiast background)
+      // Nie dziala wtedy BG overlay
+      // DISPLAY FPS
+    //  if (font) {
+    //     let currentFPS = sketch.frameRate();
+
+    //     fpsHistory.push(currentFPS);
+    //     if (fpsHistory.length > 30) fpsHistory.shift();
+
+    //     let avgFPS = fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
+
+    //     sketch.background(25);
+    //     sketch.push();
+    //     sketch.resetMatrix();
+    //     sketch.translate(-sketch.width / 2, -sketch.height / 2);
+
+    //     sketch.fill(255);
+    //     sketch.noStroke();
+    //     sketch.textSize(24);
+
+    //     sketch.text("FPS: " + avgFPS.toFixed(1), 50, 50);
+
+    //     sketch.pop();
+        
+    //  }
+      // EXPONANTIAL SMOOTHING FPS
+      //let smoothFPS = 60; // start
+      // if (font) {
+      //     sketch.background(25);
+      //  // 🔹 FPS (na początku)
+      //     let currentFPS = sketch.frameRate();
+      //     smoothFPS = smoothFPS * 0.9 + currentFPS * 0.1;
+
+      //     // 🔹 TRAIL (zamiast background)
               sketch.push();
               sketch.resetMatrix();
               sketch.translate(-sketch.width / 2, -sketch.height / 2);
@@ -229,15 +318,68 @@ const sketches = {
               sketch.rect(0, 0, sketch.width, sketch.height);
 
               sketch.pop();
-        // TRAIL 
 
-        // shader
-        //sketch.shader(myShader);
+      //     // TRAIL PRO
+      //     // let passes = 3; // ilość "klatek rozmycia"
+      //     // let fade = state.bg_fadeOut / passes;
 
-        //myShader.setUniform('u_resolution', [SCREEN_WIDTH, SCREEN_HEIGHT]);
-        //myShader.setUniform('u_time', millis() / 1000);
+      //     // for (let i = 0; i < passes; i++) {
+      //     //   sketch.push();
+      //     //   sketch.resetMatrix();
+      //     //   sketch.translate(-sketch.width / 2, -sketch.height / 2);
 
-        //rect(-width/2, -height/2, width, height);
+      //     //   sketch.noStroke();
+      //     //   sketch.fill(25, 25, 25, fade);
+      //     //   sketch.rect(0, 0, sketch.width, sketch.height);
+
+      //     //   sketch.pop();
+      //     // }
+
+      //     // 🔹 UI (na końcu)
+      //     sketch.push();
+      //     sketch.resetMatrix();
+      //     sketch.translate(-sketch.width / 2, -sketch.height / 2);
+
+      //     sketch.fill(255);
+      //     sketch.noStroke();
+      //     sketch.textSize(24);
+
+      //     sketch.text("FPS: " + smoothFPS.toFixed(1), 50, 50);
+
+      //     sketch.pop();
+        
+      // }
+
+//       if (font) {
+//         // TRAIL
+//         // sketch.push();
+//         // sketch.resetMatrix();
+//         // sketch.translate(-sketch.width / 2, -sketch.height / 2);
+
+//         // sketch.noStroke();
+//         // sketch.fill(25, 25, 25, 40);
+//         // sketch.rect(0, 0, sketch.width, sketch.height);
+
+//         // sketch.pop();
+
+//         // FPS TEXT
+//         sketch.push();
+//         sketch.resetMatrix();
+//         sketch.translate(-sketch.width / 2, -sketch.height / 2);
+
+//         sketch.fill(255);
+//         sketch.noStroke();
+//         sketch.textSize(24);
+
+//         sketch.text("FPS: " + smoothFPS.toFixed(1), 50, 50);
+
+//         sketch.pop();
+// }
+     
+        // 🔥 wykryj zmianę params (slider / JSON)
+        let hasChanged = false;
+        
+        //sketch.background(25);
         
 
         let currentFPS = sketch.frameRate();
@@ -245,7 +387,18 @@ const sketches = {
         if (fpsHistory.length > 30) fpsHistory.shift();
         let avgFPS = fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
 
-      
+        // DEBUGING    
+        onDebug({
+          isRecording,
+          isPlaying,
+          frames: keyframes.length,
+          time: playhead, 
+          FPS: avgFPS.toFixed(1)
+        });
+
+        
+
+
 
         for (let key in paramsRef.current) {
           if (paramsRef.current[key] !== target[key]) {
@@ -345,82 +498,187 @@ const sketches = {
         }
  
 
-      if(paramsRef.current.beatDetector) {
+        // Podlaczenie do audio
+        const { bass, mid, high } = bandsRef.current.current;
         
-      }
+        // 1. Wyższe progi odcięcia (aby uniknąć "szumu" tła)
+        // const kickThreshold = 0.25 // Reaguj tylko na mocny bas
+        // const snareThreshold = 0.4; // Reaguj na wyraźny środek
 
-      // Podlaczenie do audio
-      const { bass, mid, high } = bandsRef.current.current;
-      //const { bass, mid, high } = bandsRef.current;
-      // 🔥 SMOOTH BASS (attack + decay)
-      const attack = 0.1;  // jak szybko reaguje na beat
-      const decay = 0.8;  // jak wolno opada
-     
-      if (bass > smoothBass) {
-        smoothBass += (bass - smoothBass) * attack;
-      } else {
-        smoothBass *= decay;
-      }
+        // // 2. Logika izolacji: 
+        // // Snare odpala się tylko, gdy mid jest wysoki ORAZ bass nie dominuje całkowicie
+        // const isKick = bass > kickThreshold;
+        // const isSnare = mid > snareThreshold && mid > bass; 
+
+        // const kick = isKick ? bass : 0;
+        // const snare = isSnare ? mid : 0;
       
-      if (smoothBass < 0.01) {
-        smoothBass = 0;
-      }   
-      
-      bassAnim += (smoothBass - bassAnim) * 0.1;
-
-      // próg – dostosuj do swojego audio
-      const threshold = 0.1;
-
-      if (bass > threshold && prevBass <= threshold) {
-        isBeatActive = true;
-        beatProgress = 0;
-      }
-      if (!isBeatActive) {
-        beatProgress *= 0.9; // decay do 0
-      }
-      if (isBeatActive) {
-        beatProgress += dt / beatDuration;
-
-        if (beatProgress >= 1) {
-          beatProgress = 0;       // 🔥 FIX
-          isBeatActive = false;
-        }
-    }
-
-    // if(bass > 0.15) {
-    //   paramsRef.current.dynamicLight = !paramsRef.current.dynamicLight;
-    // }
-
-    const t = easeInOut(beatProgress);
-      prevBass = bass;
-
-        // DEBUGING    
-        onDebug({
-          isRecording,
-          isPlaying,
-          frames: keyframes.length,
-          time: playhead, 
-          FPS: avgFPS.toFixed(1),
-          smoothBass: smoothBass,
-          incrementerForAnimation
-        });
-      
-      
+      //X_SIZE = paramsRef.current.X_SIZE * (1 + bass  * 0.5);
+      //Y_SIZE = paramsRef.current.Y_SIZE * (1 + bass * 0.5);
       X_SIZE = state.X_SIZE;
-      Y_SIZE = state.Y_SIZE //+ parseInt(mid * 20)
+       Y_SIZE = state.Y_SIZE + parseInt(mid * 50)
+      //Y_SIZE = state.Y_SIZE;
       Z_SIZE = state.Z_SIZE //* (bass )
       
-      X_ROWS = state.X_ROWS;
-      Y_ROWS = state.Y_ROWS //+ parseInt(mid * 10)
-      Z_ROWS = state.Z_ROWS //+ parseInt(smoothBass * (25 * (smoothBass + 1)))
-    
-     // X_GAP = state.X_GAP + parseInt(bass * (120 / (bass + 1)))
-      //Y_GAP = state.Y_GAP + parseInt(mid * (50 / (mid + 1)))
-      //X_GAP = state.X_GAP;
-      X_GAP = state.X_GAP //+ parseInt(smoothBass * (60 * (smoothBass + 1)))
-      Y_GAP = state.Y_GAP  + parseInt(smoothBass * (120 * (smoothBass + 1)))
-      Z_GAP = state.Z_GAP;
+      //X_ROWS = state.X_ROWS + parseInt(kick * 5);
       
+      //X_ROWS = bass === 0 ? state.X_ROWS : (state.X_ROWS + 1) * (1 + bass * 5);
+      //Y_ROWS = state.Y_ROWS;
+      X_ROWS = state.X_ROWS;
+      Y_ROWS = state.Y_ROWS + parseInt(mid * 10)
+      //Y_ROWS = state.Y_ROWS + parseInt(snare * 7);
+      //Z_ROWS = state.Z_ROWS  + parseInt(high * 10)
+      Z_ROWS = state.Z_ROWS;
+    
+      
+
+      
+      //X_GAP =  bass === 0 ? paramsRef.current.X_GAP : (paramsRef.current.X_GAP + 1) * (1 + bass * 50);
+      // fajne let X_GAP = paramsRef.current.X_GAP * 10;
+      //Y_GAP = bass === 0 ? paramsRef.current.Y_GAP : (paramsRef.current.Y_GAP + 1) * (1 + bass * 50);
+      //Z_GAP = bass === 0 ? paramsRef.current.Z_GAP : (paramsRef.current.Z_GAP + 1) * (1 + bass * 50);
+      //Y_GAP = paramsRef.current.Y_GAP;
+      //Z_GAP = paramsRef.current.Z_GAP;
+      
+
+    //  X_GAP = paramsRef.current.X_GAP;
+      X_GAP = state.X_GAP + parseInt(bass * 120)
+      //X_GAP =  bass === 0 ? state.X_GAP : (state.X_GAP + 1) * (1 + kick * 90);
+      Y_GAP = state.Y_GAP + parseInt(mid * 50)
+      //Y_GAP = high === 0 ? state.Y_GAP : (state.Y_GAP + 1) * (1 + high * 20);
+      Z_GAP = state.Z_GAP;
+      //Y_GAP = bass === 0 ? paramsRef.current.Y_GAP : (paramsRef.current.Y_GAP + 1) * (1 + bass * 50);
+      //Z_GAP = bass === 0 ? paramsRef.current.Z_GAP : (paramsRef.current.Z_GAP + 1) * (1 + bass * 50);
+      //Z_GAP = paramsRef.current.Z_GAP;
+      
+      // console.log(state.X_GAP, "paramsRef.current.X_GAP", X_GAP)
+      
+      
+      
+        // 1. NAJPROSTSZY EFEKT (fade trail)
+        //Zamień background na:
+      //   sketch.push();
+      //   sketch.resetMatrix(); // ważne przy WEBGL
+
+      //   sketch.noStroke();
+      //   sketch.stroke(59);
+      //   sketch.background(25);
+      //   sketch.fill(25, 10, 30, state.bg_fadeOut); // ostatni parametr = szybkość zanikania
+      //   sketch.rect(sketch.width/2, -sketch.height/2, sketch.width, sketch.height);
+      //   sketch.rect(0,0, sketch.width, sketch.height);
+      // sketch.pop();
+
+
+        
+        // koniec 1
+
+        
+        // sketch.background(16, 25, 110);
+        // sketch.background(5, 10, 30); // ciemny granat
+        
+        
+
+        // WYKURWISTA POWINNA ISC DO SHADER
+        // 2. LEPSZA WERSJA (gradient + fade)
+        // Możesz połączyć fade + gradient:
+          // sketch.push();
+          // sketch.resetMatrix();
+
+          //   for (let i = 0; i < sketch.height; i += 4) {
+          //     let inter = i / sketch.height;
+
+          //     let c = sketch.lerpColor(
+          //       sketch.color(5, 10, 30, 25),
+          //       sketch.color(0, 0, 0, 25),
+          //       inter
+          //     );
+
+          //     sketch.stroke(c);
+          //     sketch.line(-sketch.width, i - sketch.height/2, sketch.width, i - sketch.height/2);
+          //   }
+
+          //   sketch.pop();
+        // Koniec 2           
+        
+        
+        
+        //debugger;
+        // let col = sketch.color(100, sketch.mouseY, 255, 255);
+        // let col = sketch.color(
+        //   paramsRef.current.colorR, 
+        //   paramsRef.current.colorG,
+        //   paramsRef.current.colorB,
+        //   paramsRef.current.opacity
+        // );
+
+        let col = sketch.color(
+          255, 
+          0,
+          180,
+          state.opacity
+        );
+
+        // sketch.ambientLight(40, 0, 60);
+        // sketch.directionalLight(0, 255, 255, -1, 0, -1);
+        
+        // 6. Cyberpunk preset (róż + niebieski)
+        // background(10, 0, 20);
+        // colorR: 255
+        // colorG: 0
+        // colorB: 180
+        // ambientLight(40, 0, 60);
+        // directionalLight(0, 255, 255, -1, 0, -1);
+
+        sketch.fill(col)
+      
+        // sketch.directionalLight(204, 204, 204, -dirX, -dirY, -1);
+      //  sketch.directionalLight(
+      //   paramsRef.current.light_1,
+      //   paramsRef.current.light_2,
+      //   paramsRef.current.light_3,
+      //   paramsRef.current.light_4,
+      //   paramsRef.current.light_5,
+      //   paramsRef.current.light_6
+      // );
+
+      // sketch.ambientLight(20, 20, 40);
+
+      // sketch.directionalLight(
+      //   state.light_1,
+      //   state.light_2,
+      //   state.light_3,
+      //   state.light_4,
+      //   state.light_5,
+      //   state.light_6
+      // );
+
+        // sketch.stroke(stroke)
+        // sketch.strokeWeight(1);
+        //sketch.stroke(20)
+        
+        // 🧠 7. Małe rzeczy które robią DUŻĄ różnicę
+        // 🔹 Usuń stroke (ważne!)
+        // sketch.noStroke();
+        // 🔹 albo delikatny glow edge:
+        //sketch.stroke(stroke, 255, 255, stroke);
+        
+        // // nie wiem co to
+        //     sketch.stroke(1)
+
+        //     sketch.line(0, SCREEN_HEIGHT, SCREEN_WIDTH *2, SCREEN_HEIGHT)
+        //     sketch.line(SCREEN_WIDTH, 0, SCREEN_WIDTH, SCREEN_HEIGHT * 2)
+
+        //     for(let x = 0; x < 20; x++) {
+        //       sketch.ellipse(SCREEN_WIDTH + (x * 20), 800 + (sketch.sin((x/19) * sketch.PI) * 200), 20, 20);
+        //     }
+
+        //     sketch.strokeWeight(1);
+        
+        
+        
+        // fajne ustawienie
+        
+        // FPS
   
         sketch.rotateX(paramsRef.current.X_ROTATE / 90);
         sketch.rotateY(paramsRef.current.Y_ROTATE / 90);
@@ -446,77 +704,77 @@ const sketches = {
         sketch.rotateY(rotY)
         sketch.rotateZ(rotZ)
 
+        //
+
+  //      let rotX = 0;
+  //       let rotY = 0;
+  //       let rotZ = 0;
+
+  //       let dt = sketch.deltaTime * 0.001; // sekundy
+
+  //       if (paramsRef.current.spinX) {
+  //         rotX += paramsRef.current.rotationSpped * dt;
+  //       }
+
+  //       if (paramsRef.current.spinY) {
+  //         rotY += paramsRef.current.rotationSpped * dt;
+  //       }
+
+  //       if (paramsRef.current.spinZ) {
+  //        rotZ += paramsRef.current.rotationSpped * dt;
+  //       }
+          
+  //      sketch.rotateX(rotX);
+  // sketch.rotateY(rotY);
+  // sketch.rotateZ(rotZ); 
+
+        // sketch.ambientLight(20, 20, 40);
+        // sketch.specularMaterial(0, 255, 200);  
+        
+        /*
+        5. Glass / hologram efekt
+          Mega futurystyczne:
+        */
+        // sketch.noStroke();
+        // sketch.specularMaterial(100, 200, 255);
+        // sketch.shininess(100);
+
+        // 6. Cyberpunk preset (róż + niebieski)
+        // background(10, 0, 20);
+        // colorR: 255
+        // colorG: 0
+        // colorB: 180
+        // ambientLight(40, 0, 60);
+        // directionalLight(0, 255, 255, -1, 0, -1);
+
+        // TL;DR – NAJSZYBSZY UPGRADE
+        // sketch.emissiveMaterial(0, 255, 200);
+        // sketch.background(5, 10, 30);
+        // sketch.noStroke();
+          
+        //rotateY(34)
         sketch.translate(-((X_ROWS * X_SIZE) / 2) + (X_SIZE / 2) - ((X_GAP * X_ROWS) / 2) + (X_GAP / 2), 
               ((Y_ROWS * Y_SIZE) / 2) - (Y_SIZE / 2) + ((Y_GAP * Y_ROWS) / 2) - (Y_GAP / 2), 
               ((Z_ROWS * Z_SIZE) / 2) - (Z_SIZE / 2) + ((Z_GAP * Z_ROWS) / 2) - (Z_GAP / 2)
             )
 
-        const speed = 2;
-        const hit = 0.5;
-        const cooldown = 0.9;
+        // 8. Bonus: „pulsująca energia”
+        // Zamiast:
+        //let sc = sketch.sin(sketch.millis() / 400);
+        // daj:
+        // let sc = sketch.sin(sketch.millis() * 0.002);  
+        const speed = 20;
+        // console.log("sketch.millis()", sketch.millis())
         if(! state.freeze) {
-
-      //      if (bass > smoothBass) {
-      //   smoothBass += (bass - smoothBass) * attack;
-      // } else {
-      //   smoothBass *= decay;
-      // }
-          
+          incrementerForAnimation += speed;
           //sc = sketch.sin(sketch.millis() * 0.002);  
-          //sc = incrementerForAnimation * 0.002;  
-          if(isBeatActive) {
-            if(incrementerForAnimation < 0.5) {
-              incrementerForAnimation += (bass) * 0.2;
-            } 
-
-            if(incrementerForAnimation > 0.7) {
-               incrementerForAnimation *= cooldown;
-            }
-            
-            // sc += smoothBass / 5;
-          } else {
-            if(incrementerForAnimation >= 0) {
-              incrementerForAnimation *= cooldown;
-            }
-            
-            //sc *= decay;
-          }
-          sc = incrementerForAnimation
-          //sc = incrementerForAnimation * 0.002;  
-          // if(sc < 0.01) {
-          //   sc = 0;
-          // }
+          sc = sketch.sin(incrementerForAnimation * 0.002);  
           
         }  else {
           //incrementerForAnimation += bass 
-          
-           sc = sketch.sin(t * 3);
-           //sc = easeInOut(smoothBass);
-          //sc = sketch.cos(t * 3);
+          sc = sketch.sin(bass * 0.002);
         }
-          
 
-        // WYKURWISTA POWINNA ISC DO SHADER
-        // 2. LEPSZA WERSJA (gradient + fade)
-        // Możesz połączyć fade + gradient:
-          // sketch.push();
-          // sketch.resetMatrix();
-
-          //   for (let i = 0; i < sketch.height; i += 4) {
-          //     let inter = i / sketch.height;
-
-          //     let c = sketch.lerpColor(
-          //       sketch.color(5, 10, 30, 25),
-          //       sketch.color(0, 0, 0, 25),
-          //       inter
-          //     );
-
-          //     sketch.stroke(c);
-          //     sketch.line(-sketch.width, i - sketch.height/2, sketch.width, i - sketch.height/2);
-          //   }
-
-          //   sketch.pop();
-        // Koniec 2           
 
         
           if(paramsRef.current.dynamicLight) {
@@ -528,15 +786,6 @@ const sketches = {
               //sketch.normalMaterial(r, g, b);
           }
         let i = 1;
-
-        function isVisible(x, y, z) {
-          const margin = 500; // dodatkowy margines dla widoczności
-          return (
-            x > -SCREEN_WIDTH/2 - margin && x < SCREEN_WIDTH/2 + margin &&
-            y > -SCREEN_HEIGHT/2 - margin && y < SCREEN_HEIGHT/2 + margin &&
-            z > -2000 && z < 2000 // zakres renderu w głąb
-          );
-        }
         
         for (let x = 0; x < X_ROWS; x++) {
           for (let y = 0; y < Y_ROWS; y++) { 
@@ -558,64 +807,54 @@ const sketches = {
                 
                 const animation = sketch.sq(sc * sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
                       sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
-                      20) // TU ZAMIAST WARTOSCI 20 chcialbym miec plynna animacje po otrzymaniu BASSU. Nie skokową, plynną
+                      20)
                 
                 let _z = (paramsRef.current.animate_z) ? animation : 0;
 
                 setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, 0, -_z);
-                if (isVisible(x_pos, y_pos, z_pos)) {
-                  //drawBox(x_pos, y_pos, z_pos, X_SIZE , Y_SIZE, -Z_SIZE, 0, 0, -_z)
-                }
-                
+                drawBox(x_pos, y_pos, z_pos, X_SIZE , Y_SIZE, -Z_SIZE, 0, 0, -_z)
               } else 
               if (isLeftWall(x, y, z)) {
                 const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
                       sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
-                      (bassAnim * 500)) // TU ZAMIAST WARTOSCI 20 chcialbym miec plynna animacje po otrzymaniu BASSU. Nie skokową, plynną
+                      20);
 
                 let _x = (paramsRef.current.animate_x) ? animation : 0;
                 
                 setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, -_x, 0, 0);
-                if (isVisible(x_pos, y_pos, z_pos)) {
-                  // TU CIEKAWE WKLESNIECIE
-                  drawBox(x_pos - (sc * _x ), y_pos, z_pos, -X_SIZE , Y_SIZE, Z_SIZE, -_x, 0, 0)
-                }
+                drawBox(x_pos, y_pos, z_pos, -X_SIZE , Y_SIZE, Z_SIZE, -_x, 0, 0)
+                  
               } else 
               if (isRightWall(x, y, z)) {	
+                const sth = y * z * bass;
                 const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
                       sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
-                      (bassAnim * 500)) // TU ZAMIAST WARTOSCI 20 chcialbym miec plynna animacje po otrzymaniu BASSU. Nie skokową, plynną
+                      20);
                 
                 let _x = (paramsRef.current.animate_x) ? animation : 0;
 
                 setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, _x, 0, 0);
-                if (isVisible(x_pos, y_pos, z_pos)) {
-                  drawBox(x_pos  + (sc * _x ), y_pos, z_pos, -X_SIZE , Y_SIZE, Z_SIZE, -_x, 0, 0)
-                }
+                drawBox(x_pos, y_pos, z_pos, -X_SIZE , Y_SIZE, Z_SIZE, -_x, 0, 0)
               } else 
               if (isTopWall(x, y, z)) {	
                 const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
                       sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
-                      bassAnim * 400)
+                      20)
 
                 let _y = (paramsRef.current.animate_y) ? animation : 0;
                 
                 setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, -_y, 0);
-                if (isVisible(x_pos, y_pos, z_pos)) { 
-                  drawBox(x_pos , y_pos + (sc * _y ), z_pos, X_SIZE , Y_SIZE, Z_SIZE, 0, -_y, 0)
-                }
+                drawBox(x_pos, y_pos, z_pos, X_SIZE , Y_SIZE, Z_SIZE, 0, -_y, 0)
               } else 
               if (isBottomWall(x, y, z)) {
                 const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
                       sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
-                      bassAnim * 400);
+                      20);
 
                 let _y = (paramsRef.current.animate_y) ? animation : 0;
 
                 setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, _y, 0);
-                if (isVisible(x_pos, y_pos, z_pos)) {
-                  drawBox(x_pos, y_pos - (sc * _y ), z_pos, X_SIZE , Y_SIZE, Z_SIZE, 0, -_y, 0)
-                }
+                drawBox(x_pos, y_pos, z_pos, X_SIZE , Y_SIZE, Z_SIZE, 0, -_y, 0)
               // EDGES
               } else {
                 //setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, 0, 0);
@@ -623,6 +862,71 @@ const sketches = {
               }
             }
           }
+        }
+
+
+      
+
+            // 🧾 HUD / debug text (top-right corner)
+  //           sketch.fill(255, 255, 255, 255);
+  //       sketch.push();
+  //       sketch.resetMatrix(); // 🔥 mega ważne w WEBGL
+
+  //       sketch.fill(255);
+  //       sketch.noStroke();
+  //       sketch.textSize(14);
+  //       sketch.textAlign(sketch.LEFT, sketch.TOP);
+
+
+  //       let status = `
+  //       REC: ${isRecording}
+  //       PLAY: ${isPlaying}
+  //       frames: ${keyframes.length}
+  //       time: ${playhead.toFixed(2)}
+  //       `;
+
+  //       // 👇 KLUCZOWE
+  // sketch.translate(-sketch.width / 2, -sketch.height / 2);
+
+  // sketch.text(status, 10, 10);
+
+  //       sketch.pop();
+
+      
+  // sketch.push();
+  // sketch.resetMatrix();
+  // sketch.translate(-sketch.width / 2, -sketch.height / 2);
+
+  //sketch.hint(sketch.DISABLE_DEPTH_TEST);
+
+  // sketch.fill(255);
+  // sketch.noStroke();
+  // sketch.textSize(14);
+
+  //       let status = `
+  //       REC: ${isRecording}
+  //       PLAY: ${isPlaying}
+  //       frames: ${keyframes.length}
+  //       time: ${playhead.toFixed(2)}
+  //       `;
+
+  //        let status2 = [
+  //         `REC: ${isRecording}`,
+  //         `PLAY: ${isPlaying}`,
+  //       `frames: ${keyframes.length}`,
+  //       `time: ${playhead.toFixed(2)}`
+  //        ]
+  //   window.recordingStatus = status2;
+
+  // sketch.text(status, 10, 10);
+
+  // sketch.pop();
+        window._debug = {
+            isRecording,
+            isPlaying,
+            frames: keyframes.length,
+            time: playhead.toFixed(2)
+
         }
     }	
 
@@ -661,12 +965,75 @@ const sketches = {
 			sketch.push();
 				sketch.translate(x_pos, y_pos, z_pos);
 
+         // glow layer
+         // sketch.noStroke();
+         // sketch.fill(0, 255, 255, 20);
+        // sketch.box(X_SIZE * 1.3, Y_SIZE * 1.3, Z_SIZE * 1.3);
+
+      
+      
+      
+      /*  WYJELISMY TO SPOD POJEDYNCZEGO RENDERU
+        🌈 4. Dynamiczny kolor (żyje 🔥)
+          Zamiast stałego koloru:
+      */
+      //  if(paramsRef.current.dynamicLight) {
+      //     let t = sketch.millis() * 0.001;
+      //     let r = 50 + 50 * sketch.sin(t);
+      //     let g = 200 + 55 * sketch.sin(t + 2);
+      //     let b = 255;
+      //     sketch.emissiveMaterial(r, g, b);
+      // } else {
+
         
+        let r = (x_pos / X_ROWS);
+        let g = (y_pos / Y_ROWS);
+        let b = (z_pos / Z_ROWS);
+        //sketch.emissiveMaterial(sketch.sin(r)*50, sketch.sin(g)*50, sketch.sin(b)*50);
+        
+        // let r = (x_pos / X_ROWS) * 255;
+        // let g = (y_pos / Y_ROWS) * 255;
+        // let b = (z_pos / Z_ROWS) * 255;
+        // sketch.emissiveMaterial(r, g, b);
+
+
+        // let t = sketch.millis() * 0.00;
+
+        // let r = 128 + 127 * sketch.sin(t + x_pos * 0.3);
+        // let g = 128 + 127 * sketch.sin(t + y_pos * 0.3);
+        // let b = 128 + 127 * sketch.sin(t + z_pos * 0.3);
+
+        // sketch.emissiveMaterial(r, g, b);
+              
+        
+        // sketch.emissiveMaterial(
+        //         paramsRef.current.colorR,
+        //         paramsRef.current.colorG,
+        //         paramsRef.current.colorB
+        //     );
+        
+        //}
+
 				sketch.box(X_SIZE + _x , Y_SIZE - _y, Z_SIZE + _z);
 			  sketch.pop();
 		}
 
-   
+    function drawBox2(x_pos, y_pos, z_pos, X_SIZE, Y_SIZE, Z_SIZE, _x, _y, _z) {
+      sketch.push();
+      sketch.translate(x_pos, y_pos, z_pos);
+
+      // glow layer
+      sketch.noStroke();
+      sketch.fill(0, 255, 255, 20);
+      sketch.box(X_SIZE * 1.3, Y_SIZE * 1.3, Z_SIZE * 1.3);
+
+      // main cube
+      sketch.emissiveMaterial(0, 255, 220);
+      sketch.box(X_SIZE + _x, Y_SIZE - _y, Z_SIZE + _z);
+
+      sketch.pop();
+    }
+    
     },
     
   }
@@ -737,7 +1104,72 @@ function Controls({ config, values, setValues }) {
   );
 }
 
+// --- Sketch Renderer ---
+// function SketchView({ sketchConfig, params }) {
+//   const sketchFn = (p5) => sketchConfig.sketch(p5, params);
+//   return <Sketch setup={(p5, canvasParentRef) => p5.setup?.(p5, canvasParentRef)} draw={(p5) => p5.draw?.(p5)} />;
+// }
 
+// function SketchView({ sketchConfig, params }) {
+//   const containerRef = useRef();
+//     let instance;
+
+//   useEffect(() => {
+//     console.log("sketchConfig", sketchConfig)
+//     console.log("params", params)
+    
+
+//     const sketch = (p) => {
+//       sketchConfig.sketch(p, params);
+//     };
+
+//     instance = new p5(sketch, containerRef.current);
+
+//     return () => {
+//       instance.remove(); // cleanup przy zmianie
+//     };
+//   }, [sketchConfig.name, params]);
+
+//   return <div ref={containerRef} />;
+// }
+
+// function DebugOverlay({ params, bands }) {
+//   const { bass, mid, high } = bands.current || {};
+//   const debugText = window._debug || {};
+//   return (
+//     <div
+//       style={{
+//         position: "absolute",
+//         top: 100,
+//         left: 30,
+//         color: "white",
+//         fontFamily: "monospace",
+//         fontSize: "12px",
+//         background: "rgba(0,0,0,0.4)",
+//         padding: "10px",
+//         borderRadius: "6px",
+//         pointerEvents: "none", // 🔥 nie blokuje klików
+//       }}
+//     >
+//       <div>🎧 bass: {bass?.toFixed(2)}</div>
+//       <div>🎧 mid: {mid?.toFixed(2)}</div>
+//       <div>🎧 high: {high?.toFixed(2)}</div>
+
+//       <hr />
+
+//       <div>X_SIZE: {params.X_SIZE}</div>
+//       <div>Y_SIZE: {params.Y_SIZE}</div>
+//       <div>Z_SIZE: {params.Z_SIZE}</div>
+
+//       <div>rows: {params.X_ROWS}</div>
+
+      
+//       {debugText && Object.entries(debugText).map((key, value) => {
+//               return <div >{key}: {value}</div>
+//           })}
+//     </div>
+//   );
+// }
 
 function DebugOverlay({ params, bands, debug }) {
   return (
@@ -748,9 +1180,7 @@ function DebugOverlay({ params, bands, debug }) {
       <div>time: {debug.time?.toFixed(2)}</div>
       <div>BASS: {bands.current.bass}</div>
       <div>MID: {bands.current.mid}</div>
-      <div>smoothBass: {debug.smoothBass}</div>
-      <div>incrementerForAnimation: {debug.incrementerForAnimation}</div>
-      
+
       <div>FPS: {debug.FPS}</div>
       <div></div>
     </div>
@@ -774,23 +1204,9 @@ function SketchView({ sketchConfig, params, bands, onDebug, screenWidth, screenH
     if (p5Instance.current) {
       p5Instance.current.remove();
     }
-    
+
     const sketch = (p) => {
-      // preload od razu przy inicjalizacji
-       // p.preload = () => {
-          //myShader = p.loadShader('./shader/shader.vert', './shader/shader.frag');
-       // };
-
-        // p.setup = () => {
-        //   p.createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT, p.WEBGL);
-        // };
-
-        // p.draw = () => {
-        //   if (!myShader) return; // zabezpieczenie jeśli shader się jeszcze nie załadował
-        //   p.shader(myShader);
-        //   p.rect(-SCREEN_WIDTH/2, -SCREEN_HEIGHT/2, SCREEN_WIDTH, SCREEN_HEIGHT);
-        // };
-        sketchConfig.sketch(p, paramsRef, bandsRef, onDebug, screenWidth, screenHeigh); // 👈 przekazujemy REF, nie state
+      sketchConfig.sketch(p, paramsRef, bandsRef, onDebug, screenWidth, screenHeigh); // 👈 przekazujemy REF, nie state
     };
 
     p5Instance.current = new p5(sketch, containerRef.current);
@@ -885,59 +1301,6 @@ export default function App() {
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-  useEffect(() => {
-  let raf;
-
-  function updateAudio() {
-    
-    if (!analyserRef.current) {
-      raf = requestAnimationFrame(updateAudio);
-      return;
-    }
-
-    analyserRef.current.getByteFrequencyData(dataArrayRef.current);
-
-    const data = dataArrayRef.current;
-
-    // 🎧 PODZIAŁ PASM
-    let bass = 0;
-    let mid = 0;
-    let high = 0;
-
-    const len = data.length;
-
-    for (let i = 0; i < len; i++) {
-      const v = data[i] / 255;
-
-      if (i < len * 0.1) bass += v;
-      else if (i < len * 0.4) mid += v;
-      else high += v;
-    }
-
-    bass /= len * 0.1;
-    mid /= len * 0.3;
-    high /= len * 0.6;
-
-    // 🔥 SMOOTH (ważne żeby nie skakało)
-    const smooth = (prev, next, factor = 0.2) =>
-      prev + (next - prev) * factor;
-
-    const current = bandsRef.current;
-
-bandsRef.current = {
-  bass: smooth(current?.bass || 0, bass),
-  mid: smooth(current?.mid || 0, mid),
-  high: smooth(current?.high || 0, high),
-};
-
-    console.log("DATA[0]:", dataArrayRef.current[0]);
-    raf = requestAnimationFrame(updateAudio);
-  }
-
-  updateAudio();
-
-  return () => cancelAnimationFrame(raf);
-}, []);
   
   
   const [currentSketch, setCurrentSketch] = useState("dupa");
@@ -1037,45 +1400,6 @@ bandsRef.current = {
   // }
  
   //console.log("calling SketchView with size width", size.width, "size height", size.height)
-
-const analyserRef = useRef(null);
-const dataArrayRef = useRef(null);
-const audioRef = useRef(null);
-const audioCtxRef = useRef(null);
-let lastKickTime = 0;
-function handleAudioUpload(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const audio = new Audio(URL.createObjectURL(file));
-  // audio.crossOrigin = "anonymous";
-  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  audioCtxRef.current = audioCtx;
-  const analyser = audioCtx.createAnalyser();
-
-  analyser.fftSize = 512;
-
-  const source = audioCtx.createMediaElementSource(audio);
-  source.connect(analyser);
-  analyser.connect(audioCtx.destination);
-
-  const bufferLength = analyser.frequencyBinCount;
-  const dataArray = new Uint8Array(bufferLength);
-
-  analyserRef.current = analyser;
-  dataArrayRef.current = dataArray;
-  audioRef.current = audio;
-}
-
-function playAudio() {
-  if (!audioRef.current) return;
-
-  if (audioCtxRef.current?.state === "suspended") {
-    audioCtxRef.current.resume();
-  }
-
-  audioRef.current.play();
-}
   
   return (
     <div className="app" ref={containerRef}>
@@ -1113,8 +1437,6 @@ function playAudio() {
           <br/>
           <input type="file" accept="application/json" onChange={handleFileUpload} />
           <p>{"status: "}</p>
-          <input type="file" accept="audio/*" onChange={handleAudioUpload} />
-          <button onClick={playAudio}>PLAY</button>
           
       </div>
       {/* Right: Controls + List */}

@@ -174,7 +174,7 @@ const sketches = {
 
     
     
-    let myShader;
+    // let myShader;
     // sketch.preload = function() {
     //   // myShader = sketch.loadShader('./shader/shader.vert', './shader/shader.frag');
     // };
@@ -219,17 +219,37 @@ const sketches = {
         let hasChanged = false;
       
           
-          // 🔹 TRAIL (zamiast background)
-              sketch.push();
-              sketch.resetMatrix();
-              sketch.translate(-sketch.width / 2, -sketch.height / 2);
+        //   // 🔹 TRAIL (zamiast background)
+        //       sketch.push();
+        //       sketch.resetMatrix();
+        //       sketch.translate(-sketch.width / 2, -sketch.height / 2);
 
-              sketch.noStroke();
-              sketch.fill(25, 25, 25, state.bg_fadeOut);
-              sketch.rect(0, 0, sketch.width, sketch.height);
+        //       sketch.noStroke();
+        //       sketch.fill(25, 25, 25, state.bg_fadeOut);
+        //       sketch.rect(0, 0, sketch.width, sketch.height);
 
-              sketch.pop();
-        // TRAIL 
+        //       sketch.pop();
+        // // TRAIL 
+
+        // 1. Wyłączenie sprawdzania głębi (Najszybszy "Hack")
+        // Jeśli Twój trail musi być rysowany w ten sposób, musisz tymczasowo wyłączyć depth test, aby p5 nie próbowało obliczać, czy prostokąt trailu jest przed czy za sześcianami.
+        // sketch.push();
+        // sketch.resetMatrix();
+        // // Wyłączamy sprawdzanie głębi, żeby prostokąt nie "gryzł się" z 3D
+        // sketch.hint(sketch.DISABLE_DEPTH_TEST); 
+        // sketch.noStroke();
+        // sketch.fill(25, 25, 25, state.bg_fadeOut);
+        // // Przesunięcie lekko w tył, by nie kolidowało z kamerą
+        // sketch.translate(0, 0, -1); 
+        // sketch.rect(-sketch.width/2, -sketch.height/2, sketch.width, sketch.height);
+        // sketch.hint(sketch.ENABLE_DEPTH_TEST);
+        // sketch.pop();
+
+
+        // 3 opcja
+        sketch.background(25, 25, 25, state.bg_fadeOut);
+
+
 
         // shader
         //sketch.shader(myShader);
@@ -247,12 +267,12 @@ const sketches = {
 
       
 
-        for (let key in paramsRef.current) {
-          if (paramsRef.current[key] !== target[key]) {
-            hasChanged = true;
-            break;
-          }
-        }
+        // for (let key in paramsRef.current) {
+        //   if (paramsRef.current[key] !== target[key]) {
+        //     hasChanged = true;
+        //     break;
+        //   }
+        // }
 
         // if (hasChanged) {
         //   target = { ...paramsRef.current };
@@ -292,7 +312,7 @@ const sketches = {
           state = target;
         }
 
-        // RECORDING
+        //RECORDING
         if (isRecording) {
           playhead += dt;
           recordFrame(playhead);
@@ -345,9 +365,9 @@ const sketches = {
         }
  
 
-      if(paramsRef.current.beatDetector) {
+      // if(paramsRef.current.beatDetector) {
         
-      }
+      // }
 
       // Podlaczenie do audio
       const { bass, mid, high } = bandsRef.current.current;
@@ -391,8 +411,8 @@ const sketches = {
     //   paramsRef.current.dynamicLight = !paramsRef.current.dynamicLight;
     // }
 
-    const t = easeInOut(beatProgress);
-      prevBass = bass;
+   // const t = easeInOut(beatProgress);
+      //prevBass = bass;
 
         // DEBUGING    
         onDebug({
@@ -406,20 +426,20 @@ const sketches = {
         });
       
       
-      X_SIZE = state.X_SIZE;
-      Y_SIZE = state.Y_SIZE //+ parseInt(mid * 20)
-      Z_SIZE = state.Z_SIZE //* (bass )
+      X_SIZE = paramsRef.current.X_SIZE;
+      Y_SIZE = paramsRef.current.Y_SIZE //+ parseInt(mid * 20)
+      Z_SIZE = paramsRef.current.Z_SIZE //* (bass )
       
-      X_ROWS = state.X_ROWS;
-      Y_ROWS = state.Y_ROWS //+ parseInt(mid * 10)
-      Z_ROWS = state.Z_ROWS //+ parseInt(smoothBass * (25 * (smoothBass + 1)))
+      X_ROWS = paramsRef.current.X_ROWS;
+      Y_ROWS = paramsRef.current.Y_ROWS //+ parseInt(mid * 10)
+      Z_ROWS = paramsRef.current.Z_ROWS //+ parseInt(smoothBass * (25 * (smoothBass + 1)))
     
      // X_GAP = state.X_GAP + parseInt(bass * (120 / (bass + 1)))
       //Y_GAP = state.Y_GAP + parseInt(mid * (50 / (mid + 1)))
       //X_GAP = state.X_GAP;
-      X_GAP = state.X_GAP //+ parseInt(smoothBass * (60 * (smoothBass + 1)))
-      Y_GAP = state.Y_GAP  + parseInt(smoothBass * (120 * (smoothBass + 1)))
-      Z_GAP = state.Z_GAP;
+      X_GAP = paramsRef.current.X_GAP //+ parseInt(smoothBass * (60 * (smoothBass + 1)))
+      Y_GAP = paramsRef.current.Y_GAP  + parseInt(smoothBass * (120 * (smoothBass + 1)))
+      Z_GAP = paramsRef.current.Z_GAP;
       
   
         sketch.rotateX(paramsRef.current.X_ROTATE / 90);
@@ -427,7 +447,7 @@ const sketches = {
         sketch.rotateZ(paramsRef.current.Z_ROTATE / 90);
         
 
-        // let dt = sketch.deltaTime * 0.05; // sekundy
+        
         if(state.spinX) {
           rotX += dt * (state.rotationSpped/100);
         }
@@ -456,14 +476,14 @@ const sketches = {
         const cooldown = 0.9;
         if(! state.freeze) {
 
-      //      if (bass > smoothBass) {
-      //   smoothBass += (bass - smoothBass) * attack;
-      // } else {
-      //   smoothBass *= decay;
-      // }
+           if (bass > smoothBass) {
+        smoothBass += (bass - smoothBass) * attack;
+      } else {
+        smoothBass *= decay;
+      }
           
-          //sc = sketch.sin(sketch.millis() * 0.002);  
-          //sc = incrementerForAnimation * 0.002;  
+          sc = sketch.sin(sketch.millis() * 0.002);  
+          sc = incrementerForAnimation * 0.002;  
           if(isBeatActive) {
             if(incrementerForAnimation < 0.5) {
               incrementerForAnimation += (bass) * 0.2;
@@ -493,7 +513,7 @@ const sketches = {
            sc = sketch.sin(t * 3);
            //sc = easeInOut(smoothBass);
           //sc = sketch.cos(t * 3);
-        }
+         }
           
 
         // WYKURWISTA POWINNA ISC DO SHADER

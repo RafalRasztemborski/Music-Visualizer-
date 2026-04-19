@@ -12,7 +12,7 @@ export function useAnalyser() {
 
     analyser.fftSize = 2048;
 
-    const bufferLength = analyser.frequencyBinCount;
+    const bufferLength = analyser.frequencyBinCount;5
     const dataArray = new Uint8Array(bufferLength);
 
     ctxRef.current = ctx;

@@ -183,6 +183,12 @@ const sketches = {
       
       //myShader = sketch.loadShader('/shader/shader.vert', '/shader/shader.frag')
       sketch.createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT, sketch.WEBGL);
+
+      let gl = sketch.drawingContext;
+      gl.enable(gl.CULL_FACE); // Włącza odrzucanie ścianek
+      gl.cullFace(gl.FRONT);    // Mówi: "nie rysuj tego, co jest z tyłu"
+
+
       sketch.background(0);
       //sketch.hint(sketch.ENABLE_DEPTH_TEST); // sketch.hint is not a function
       //sketch.pixelDensity(1); //real game changer in terms of fps
@@ -264,6 +270,23 @@ const sketches = {
           sketch.pop();
 
           // --- Tutaj dalej Twoje rysowanie boxów ---
+
+          // TAIL 3
+          // Wewnątrz rysowania TRAILU:
+// sketch.push();
+// sketch.resetMatrix();
+// const gl = sketch.drawingContext;
+
+// // 1. Wyłączamy zapis do bufora głębi, ale zostawiamy testowanie
+// gl.depthMask(false); 
+
+// sketch.noStroke();
+// sketch.fill(0, 0, 0, paramsRef.current.bg_fadeOut); 
+// sketch.rect(-sketch.width/2, -sketch.height/2, sketch.width, sketch.height);
+
+// // 2. Włączamy zapis z powrotem
+// gl.depthMask(true); 
+// sketch.pop();
 
         // 1. Wyłączenie sprawdzania głębi (Najszybszy "Hack")
         // Jeśli Twój trail musi być rysowany w ten sposób, musisz tymczasowo wyłączyć depth test, aby p5 nie próbowało obliczać, czy prostokąt trailu jest przed czy za sześcianami.
@@ -684,12 +707,21 @@ const sketches = {
 
       
       // CACHEING
+      // CACHE!
       const curParams = paramsRef.current;
       const scVal = sc; // Cache Twojego incrementera
+
+      const currentAnimateX = curParams.animate_x;
+      const currentAnimateY = curParams.animate_y;
+      const currentAnimateZ = curParams.animate_z;
+
+      const halfX = (X_ROWS * X_SIZE + X_GAP * X_ROWS) / 2;
+      const halfY = (Y_ROWS * Y_SIZE + Y_GAP * Y_ROWS) / 2;
 
       const sinX = [];
       const sinY = [];
       const sinZ = [];
+
       for (let x = 0; x < X_ROWS; x++) {
         sinX[x] = sketch.sin((x / (X_ROWS - 1)) * sketch.PI);
       }
@@ -699,9 +731,189 @@ const sketches = {
       for (let z = 0; z < Z_ROWS; z++) {
         sinZ[z] = sketch.sin((z / (Z_ROWS - 1)) * sketch.PI);
       }
+sketch.blendMode(sketch.BLEND);
+      const drawCube = () => {
+            const stepX = X_SIZE + X_GAP;
+          const stepY = Y_SIZE + Y_GAP;
+          const stepZ = Z_SIZE + Z_GAP;
+
+          let startX, startZ, startY, baseX, baseZ, baseY;
+          // FRON
+          sketch.push();
+
+            startX = -((X_ROWS * stepX) / 2);
+            startY = ((Y_ROWS * stepY) / 2);
+            baseZ = -((Z_ROWS - 1) * stepZ) / 2;
+
+            sketch.translate(startX, startY, baseZ);
+
+            for (let x = 0; x < X_ROWS; x++) {
+              let offsetY = 0;
+
+              for (let y = 0; y < Y_ROWS; y++) {
+
+                if (isFrontWall(x, y, 0)) {
+                  const anim = sketch.sq(scVal * sinX[x] * sinY[y] * 20);
+                  let _z = paramsRef.current.animate_z ? anim + 10 : 0;
+
+                  sketch.translate(0, -offsetY, _z);
+                  sketch.box(X_SIZE, Y_SIZE, Z_SIZE);
+                  sketch.translate(0, offsetY, -_z);
+                }
+
+                offsetY += stepY;
+              }
+
+              sketch.translate(stepX, 0, 0);
+          }
+
+          sketch.pop();
+          // BACK
+          sketch.push();
+
+            startX = -((X_ROWS * stepX) / 2);
+            startY = ((Y_ROWS * stepY) / 2);
+            baseZ = -((Z_ROWS - 1) * stepZ) - ((Z_ROWS - 1) * stepZ)/2;
+
+            sketch.translate(startX, startY, baseZ);
+
+            for (let x = 0; x < X_ROWS; x++) {
+              let offsetY = 0;
+
+              for (let y = 0; y < Y_ROWS; y++) {
+
+                if (isBackWall(x, y, Z_ROWS - 1)) {
+                  const anim = sketch.sq(scVal * sinX[x] * sinY[y] * 20);
+                  let _z = paramsRef.current.animate_z ? anim : 0;
+
+                  sketch.translate(0, -offsetY, -_z);
+                  sketch.box(X_SIZE, Y_SIZE, -Z_SIZE);
+                  sketch.translate(0, offsetY, _z);
+                }
+
+                offsetY += stepY;
+              }
+
+              sketch.translate(stepX, 0, 0);
+            }
+
+            sketch.pop();
+            // LEFT
+            sketch.push();
+
+            startY = ((Y_ROWS * stepY) / 2);
+            startZ = -((Z_ROWS * stepZ) / 2);
+
+            sketch.translate(-(X_ROWS * X_SIZE) / 2, startY, startZ);
+
+            for (let y = 0; y < Y_ROWS; y++) {
+              let offsetZ = 0;
+
+              for (let z = 0; z < Z_ROWS; z++) {
+
+                if (isLeftWall(0, y, z)) {
+                  const anim = sketch.sq(scVal * sinZ[z] * sinY[y] * (bassAnim * 500));
+                  let _x = paramsRef.current.animate_x ? anim : 0;
+
+                  sketch.translate(-_x, -y * stepY, -offsetZ);
+                  sketch.box(-X_SIZE, Y_SIZE, Z_SIZE);
+                  sketch.translate(_x, y * stepY, offsetZ);
+                }
+
+                offsetZ += stepZ;
+              }
+            }
+
+          sketch.pop();  
+          // RIGHT
+          sketch.push();
+
+            startY = ((Y_ROWS * stepY) / 2);
+            startZ = -((Z_ROWS * stepZ) / 2);
+            baseX = (X_ROWS - 1) * stepX/ 2 ;
+
+            sketch.translate(baseX, startY, startZ);
+
+            for (let y = 0; y < Y_ROWS; y++) {
+              let offsetZ = 0;
+
+              for (let z = 0; z < Z_ROWS; z++) {
+
+                if (isRightWall(X_ROWS - 1, y, z)) {
+                  const anim = sketch.sq(scVal * sinZ[z] * sinY[y] * (bassAnim * 500));
+                  let _x = paramsRef.current.animate_x ? anim : 0;
+
+                  sketch.translate(_x, -y * stepY, -offsetZ);
+                  sketch.box(-X_SIZE, Y_SIZE, Z_SIZE);
+                  sketch.translate(-_x, y * stepY, offsetZ);
+                }
+
+                offsetZ += stepZ;
+              }
+            }
+
+          sketch.pop();
+          // TOP
+          sketch.push();
+
+            startX = -((X_ROWS * stepX) / 2);
+            startZ = -((Z_ROWS * stepZ) / 2);
+            startY = -((Y_ROWS * stepY) - (Y_ROWS * stepY)/2 );
+
+            sketch.translate(startX, startY, startZ);
+
+            for (let x = 0; x < X_ROWS; x++) {
+              let offsetZ = 0;
+
+              for (let z = 0; z < Z_ROWS; z++) {
+
+                if (isTopWall(x, 0, z)) {
+                  const anim = sketch.sq(scVal * sinZ[z] * sinX[x] * (bassAnim * 400));
+                  let _y = paramsRef.current.animate_y ? anim : 0;
+
+                  sketch.translate(x * stepX, -_y, -offsetZ);
+                  sketch.box(X_SIZE, Y_SIZE, Z_SIZE);
+                  sketch.translate(-x * stepX, _y, offsetZ);
+                } 
+
+                offsetZ += stepZ;
+              }
+            }
+          sketch.pop();
 
 
-      // 1. FRONT & BACK (Stałe Z)
+          // BOTTOM (y = max)
+          sketch.push();
+
+            startX = -((X_ROWS * stepX) / 2); 
+            startZ = -((Z_ROWS * stepZ) / 2);
+              baseY =   Y_ROWS * stepY - (Y_ROWS * stepY)/2;
+
+            sketch.translate(startX, baseY, startZ);
+
+            for (let x = 0; x < X_ROWS; x++) {
+              let offsetZ = 0;
+
+              for (let z = 0; z < Z_ROWS; z++) {
+
+                if (isBottomWall(x, Y_ROWS - 1, z)) {
+                  const anim = sketch.sq(scVal * sinZ[z] * sinX[x] * (bassAnim * 400));
+                  let _y = paramsRef.current.animate_y ? anim : 0;
+
+                  sketch.translate(x * stepX, _y, -offsetZ);
+                  sketch.box(X_SIZE, Y_SIZE, Z_SIZE);
+                  sketch.translate(-x * stepX, -_y, offsetZ);
+                }
+
+                offsetZ += stepZ;
+              }
+          }
+
+          sketch.pop();
+      }
+
+      const drawCure2 = () => {
+        // 1. FRONT & BACK (Stałe Z)
       for (let x = 0; x < X_ROWS; x++) {
         for (let y = 0; y < Y_ROWS; y++) {
           // Wspólna animacja dla tych ścian
@@ -732,7 +944,7 @@ const sketches = {
           // LEFT (x = 0)
           if (isLeftWall(0, y, z)) {
              
-                let _x = curParams.animate_x ? anim : 0;
+                let _x = currentAnimateX ? anim : 0;
             setPos(0, y, z, X_GAP, Y_GAP, Z_GAP, -_x, 0, 0);
             if (isVisible(x_pos, y_pos, z_pos)) { 
             drawBox(x_pos - (scVal * _x * 2), y_pos, z_pos, -X_SIZE, Y_SIZE, Z_SIZE, -_x, 0, 0);
@@ -743,7 +955,7 @@ const sketches = {
           // RIGHT (x = X_ROWS - 1)
           if (isRightWall(X_ROWS - 1, y, z)) {
             
-              let _x = curParams.animate_x ? anim : 0;
+              let _x = currentAnimateX ? anim : 0;
             setPos(X_ROWS - 1, y, z, X_GAP, Y_GAP, Z_GAP, _x, 0, 0);
             if (isVisible(x_pos, y_pos, z_pos)) { 
             drawBox(x_pos + (scVal * _x * 2), y_pos, z_pos, -X_SIZE, Y_SIZE, Z_SIZE, -_x, 0, 0);
@@ -753,7 +965,7 @@ const sketches = {
         }
       }
 
-      // 3. TOP & BOTTOM (Stałe Y)
+      // // 3. TOP & BOTTOM (Stałe Y)
       for (let x = 0; x < X_ROWS; x++) {
         for (let z = 0; z < Z_ROWS; z++) {
           //const anim = sketch.sq(scVal * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * bassAnim * 400);
@@ -762,7 +974,7 @@ const sketches = {
           // TOP (y = 0)
           if (isTopWall(x, 0, z)) {
             
-              let _y = curParams.animate_y ? anim : 0;
+              let _y = currentAnimateY ? anim : 0;
             setPos(x, 0, z, X_GAP, Y_GAP, Z_GAP, 0, -_y, 0);
             if (isVisible(x_pos, y_pos, z_pos)) { 
             drawBox(x_pos, y_pos + (scVal * _y), z_pos, X_SIZE, Y_SIZE, Z_SIZE, 0, -_y, 0);
@@ -773,16 +985,22 @@ const sketches = {
           // BOTTOM (y = Y_ROWS - 1)
           if (isBottomWall(x, Y_ROWS - 1, z)) {
             
-              let _y = curParams.animate_y ? anim : 0;
+              let _y = currentAnimateY ? anim : 0;
             setPos(x, Y_ROWS - 1, z, X_GAP, Y_GAP, Z_GAP, 0, _y, 0);
             if (isVisible(x_pos, y_pos, z_pos)) { 
             drawBox(x_pos, y_pos - (scVal * _y), z_pos, X_SIZE, Y_SIZE, Z_SIZE, 0, -_y, 0);
             }
             
           }
+          }
         }
       }
+
+      drawCure2();
     }	
+
+  
+
 
 		function isFrontWall(x, y, z) {
 			return z == 0 && y != 0 && y != Y_ROWS - 1 && x != 0 && x != X_ROWS - 1;
@@ -818,6 +1036,8 @@ const sketches = {
 		function drawBox(x_pos, y_pos, z_pos, X_SIZE, Y_SIZE, Z_SIZE, _x, _y, _z) {
 			sketch.push();
 				sketch.translate(x_pos, y_pos, z_pos);
+        //sketch.resetMatrix();
+        //sketch.translate(x_pos, y_pos, z_pos);
         sketch.box(X_SIZE + _x , Y_SIZE - _y, Z_SIZE + _z);
 			sketch.pop();
 		}

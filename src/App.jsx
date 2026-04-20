@@ -199,7 +199,7 @@ const sketches = {
       // To wykonuje się tylko RAZ.
       boxModel = sketch.createModel(() => {
           sketch.box(1); 
-      });
+      }, 'mini_cube');
       
       // inicjalizacja z aktualnych sliderów
       state = { ...paramsRef.current };
@@ -427,7 +427,8 @@ const sketches = {
       // }
 
       // Podlaczenie do audio
-      const { bass, mid, high } = bandsRef.current.current;
+      const bands = bandsRef.current.current;
+      const bass = bands.bass;
       //const { bass, mid, high } = bandsRef.current;
       // 🔥 SMOOTH BASS (attack + decay)
       const attack = 0.1;  // jak szybko reaguje na beat
@@ -523,10 +524,10 @@ const sketches = {
         sketch.rotateY(rotY)
         sketch.rotateZ(rotZ)
 
-        sketch.translate(-((X_ROWS * X_SIZE) / 2) + (X_SIZE / 2) - ((X_GAP * X_ROWS) / 2) + (X_GAP / 2), 
-              ((Y_ROWS * Y_SIZE) / 2) - (Y_SIZE / 2) + ((Y_GAP * Y_ROWS) / 2) - (Y_GAP / 2), 
-              ((Z_ROWS * Z_SIZE) / 2) - (Z_SIZE / 2) + ((Z_GAP * Z_ROWS) / 2) - (Z_GAP / 2)
-            )
+        // sketch.translate(-((X_ROWS * X_SIZE) / 2) + (X_SIZE / 2) - ((X_GAP * X_ROWS) / 2) + (X_GAP / 2), 
+        //       ((Y_ROWS * Y_SIZE) / 2) - (Y_SIZE / 2) + ((Y_GAP * Y_ROWS) / 2) - (Y_GAP / 2), 
+        //       ((Z_ROWS * Z_SIZE) / 2) - (Z_SIZE / 2) + ((Z_GAP * Z_ROWS) / 2) - (Z_GAP / 2)
+        //     )
 
         const speed = 2;
         const hit = 0.5;
@@ -601,10 +602,12 @@ const sketches = {
               let r = 50 + 50 * sketch.sin(t);
               let g = 200 + 55 * sketch.sin(t + 2);
               let b = 255;
-              sketch.emissiveMaterial(r, g, b);
+              //sketch.emissiveMaterial(r, g, b);
+              //sketch.ambientMaterial(200);
+              sketch.fill(r, g, b);
               //sketch.normalMaterial(r, g, b);
           }
-        let i = 1;
+        
 
         function isVisible(x, y, z) {
           const margin = 500; // dodatkowy margines dla widoczności
@@ -615,94 +618,8 @@ const sketches = {
           );
         }
         
-        // for (let x = 0; x < X_ROWS; x++) {
-        //   for (let y = 0; y < Y_ROWS; y++) { 
-        //     for (let z = 0; z < Z_ROWS; z++) {
-        //       if (isFrontWall(x, y, z)) {
-        //         i++
-        //         const animation = sketch.sq(sc * 
-        //           sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
-        //                 sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
-        //               20) + 10;
-                
-        //         //let _z = sc; //sketch.round(sc * 
-        //         //let _z = (paramsRef.current.animate_z) ? animation : 0; FAJNY EFEKT
-        //         let _z = (paramsRef.current.animate_z) ? animation : 0;
-        //         setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, 0, _z);
-        //         // drawBox(x_pos, y_pos, z_pos, X_SIZE , Y_SIZE, Z_SIZE, 0, 0, _z)
-        //       } else 
-        //       if (isBackWall(x, y, z)) {
-                
-        //         const animation = sketch.sq(sc * sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
-        //               sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
-        //               20) // TU ZAMIAST WARTOSCI 20 chcialbym miec plynna animacje po otrzymaniu BASSU. Nie skokową, plynną
-                
-        //         let _z = (paramsRef.current.animate_z) ? animation : 0;
-
-        //         setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, 0, -_z);
-        //         if (isVisible(x_pos, y_pos, z_pos)) {
-        //           //drawBox(x_pos, y_pos, z_pos, X_SIZE , Y_SIZE, -Z_SIZE, 0, 0, -_z)
-        //         }
-                
-        //       } else 
-        //       if (isLeftWall(x, y, z)) {
-        //         const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
-        //               sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
-        //               (bassAnim * 500)) // TU ZAMIAST WARTOSCI 20 chcialbym miec plynna animacje po otrzymaniu BASSU. Nie skokową, plynną
-
-        //         let _x = (paramsRef.current.animate_x) ? animation : 0;
-                
-        //         setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, -_x, 0, 0);
-        //         if (isVisible(x_pos, y_pos, z_pos)) {
-        //           // TU CIEKAWE WKLESNIECIE
-        //           drawBox(x_pos - (sc * _x ), y_pos, z_pos, -X_SIZE , Y_SIZE, Z_SIZE, -_x, 0, 0)
-        //         }
-        //       } else 
-        //       if (isRightWall(x, y, z)) {	
-        //         const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
-        //               sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
-        //               (bassAnim * 500)) // TU ZAMIAST WARTOSCI 20 chcialbym miec plynna animacje po otrzymaniu BASSU. Nie skokową, plynną
-                
-        //         let _x = (paramsRef.current.animate_x) ? animation : 0;
-
-        //         setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, _x, 0, 0);
-        //         if (isVisible(x_pos, y_pos, z_pos)) {
-        //           drawBox(x_pos  + (sc * _x ), y_pos, z_pos, -X_SIZE , Y_SIZE, Z_SIZE, -_x, 0, 0)
-        //         }
-        //       } else 
-        //       if (isTopWall(x, y, z)) {	
-        //         const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
-        //               sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
-        //               bassAnim * 400)
-
-        //         let _y = (paramsRef.current.animate_y) ? animation : 0;
-                
-        //         setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, -_y, 0);
-        //         if (isVisible(x_pos, y_pos, z_pos)) { 
-        //           drawBox(x_pos , y_pos + (sc * _y ), z_pos, X_SIZE , Y_SIZE, Z_SIZE, 0, -_y, 0)
-        //         }
-        //       } else 
-        //       if (isBottomWall(x, y, z)) {
-        //         const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
-        //               sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
-        //               bassAnim * 400);
-
-        //         let _y = (paramsRef.current.animate_y) ? animation : 0;
-
-        //         setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, _y, 0);
-        //         if (isVisible(x_pos, y_pos, z_pos)) {
-        //           drawBox(x_pos, y_pos - (sc * _y ), z_pos, X_SIZE , Y_SIZE, Z_SIZE, 0, -_y, 0)
-        //         }
-        //       // EDGES
-        //       } else {
-        //         //setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, 0, 0);
-        //         //drawBox(x_pos, y_pos, z_pos,X_SIZE , Y_SIZE, Z_SIZE, 0, 0, 0)
-        //       }
-        //     }
-        //   }
-        // }
-
-        // --- ZOPTYMALIZOWANA LOGIKA RYSOWANIA ŚCIAN ---
+    
+      // --- ZOPTYMALIZOWANA LOGIKA RYSOWANIA ŚCIAN ---
       // Wywołaj to wewnątrz draw() zamiast starej potrójnej pętli
 
       
@@ -731,7 +648,121 @@ const sketches = {
       for (let z = 0; z < Z_ROWS; z++) {
         sinZ[z] = sketch.sin((z / (Z_ROWS - 1)) * sketch.PI);
       }
-sketch.blendMode(sketch.BLEND);
+
+      const drawOptimizedWalls = () => {
+      const stepX = X_SIZE + X_GAP;
+      const stepY = Y_SIZE + Y_GAP;
+      const stepZ = Z_SIZE + Z_GAP;
+
+      const totalWidth = X_ROWS * stepX;
+      const totalHeight = Y_ROWS * stepY;
+      const totalDepth = Z_ROWS * stepZ;
+
+      // Helper do rysowania pojedynczego boxa z opcjonalną animacją
+      const renderBox = (animValue = 0, ax = 0, ay = 0, az = 0) => {
+          sketch.push();
+          if (animValue !== 0) {
+              sketch.translate(ax, ay, az);
+          }
+          sketch.box(X_SIZE, Y_SIZE, Z_SIZE);
+          sketch.pop();
+      };
+
+      // --- 1. FRONT & BACK (Płaszczyzna XY, stałe Z) ---
+      // Pętla po X i Y
+      // for (let x = 0; x < X_ROWS; x++) {
+      //     for (let y = 0; y < Y_ROWS; y++) {
+      //         // FRONT (z = 0)
+      //         if (isFrontWall(x, y, 0)) {
+      //             const anim = paramsRef.current.animate_z ? sketch.sq(sc * sinX[x] * sinY[y] * 20) : 0;
+      //             sketch.push();
+      //             sketch.translate(
+      //                 -totalWidth / 2 + x * stepX + stepX / 2,
+      //                 totalHeight / 2 - y * stepY - stepY / 2,
+      //                 -totalDepth / 2 + stepZ / 2
+      //             );
+      //             renderBox(anim, 0, 0, anim);
+      //             sketch.pop();
+      //         }
+      //         // BACK (z = Z_ROWS - 1)
+      //         if (isBackWall(x, y, Z_ROWS - 1)) {
+      //             const anim = paramsRef.current.animate_z ? sketch.sq(sc * sinX[x] * sinY[y] * 20) : 0;
+      //             sketch.push();
+      //             sketch.translate(
+      //                 -totalWidth / 2 + x * stepX + stepX / 2,
+      //                 totalHeight / 2 - y * stepY - stepY / 2,
+      //                 totalDepth / 2 - stepZ / 2
+      //             );
+      //             renderBox(anim, 0, 0, -anim);
+      //             sketch.pop();
+      //         }
+      //     }
+      // }
+
+      // --- 2. LEFT & RIGHT (Płaszczyzna YZ, stałe X) ---
+      // Pętla po Y i Z
+      for (let y = 0; y < Y_ROWS; y++) {
+          for (let z = 0; z < Z_ROWS; z++) {
+              const anim = paramsRef.current.animate_x ? sketch.sq(sc * sinZ[z] * sinY[y] * (bassAnim * 500)) : 0;
+              
+              // LEFT (x = 0)
+              if (isLeftWall(0, y, z)) {
+                  sketch.push();
+                  sketch.translate(
+                      -totalWidth / 2 + stepX / 2,
+                      totalHeight / 2 - y * stepY - stepY / 2,
+                      -totalDepth / 2 + z * stepZ + stepZ / 2
+                  );
+                  renderBox(anim, -anim, 0, 0);
+                  sketch.pop();
+              }
+              // RIGHT (x = X_ROWS - 1)
+              if (isRightWall(X_ROWS - 1, y, z)) {
+                  sketch.push();
+                  sketch.translate(
+                      totalWidth / 2 - stepX / 2,
+                      totalHeight / 2 - y * stepY - stepY / 2,
+                      -totalDepth / 2 + z * stepZ + stepZ / 2
+                  );
+                  renderBox(anim, anim, 0, 0);
+                  sketch.pop();
+              }
+          }
+      }
+
+      // --- 3. TOP & BOTTOM (Płaszczyzna XZ, stałe Y) ---
+      // Pętla po X i Z
+      for (let x = 0; x < X_ROWS; x++) {
+          for (let z = 0; z < Z_ROWS; z++) {
+              const anim = paramsRef.current.animate_y ? sketch.sq(sc * sinZ[z] * sinX[x] * (bassAnim * 400)) : 0;
+
+              // TOP (y = 0)
+              if (isTopWall(x, 0, z)) {
+                  sketch.push();
+                  sketch.translate(
+                      -totalWidth / 2 + x * stepX + stepX / 2,
+                      totalHeight / 2 - stepY / 2,
+                      -totalDepth / 2 + z * stepZ + stepZ / 2
+                  );
+                  renderBox(anim, 0, anim, 0);
+                  sketch.pop();
+              }
+              // BOTTOM (y = Y_ROWS - 1)
+              if (isBottomWall(x, Y_ROWS - 1, z)) {
+                  sketch.push();
+                  sketch.translate(
+                      -totalWidth / 2 + x * stepX + stepX / 2,
+                      -totalHeight / 2 + stepY / 2,
+                      -totalDepth / 2 + z * stepZ + stepZ / 2
+                  );
+                  renderBox(anim, 0, -anim, 0);
+                  sketch.pop();
+              }
+          }
+      }
+      };
+      
+      //sketch.blendMode(sketch.BLEND);
       const drawCube = () => {
             const stepX = X_SIZE + X_GAP;
           const stepY = Y_SIZE + Y_GAP;
@@ -921,14 +952,14 @@ sketch.blendMode(sketch.BLEND);
 
           // FRONT (z = 0)
           // if (isFrontWall(x, y, 0)) {
-          //   let _z = curParams.animate_z ? anim + 10 : 0;
+          //   let _z = currentAnimateZ ? anim + 10 : 0;
           //   setPos(x, y, 0, X_GAP, Y_GAP, Z_GAP, 0, 0, _z);
           //   drawBox(x_pos, y_pos, z_pos, X_SIZE, Y_SIZE, Z_SIZE, 0, 0, _z);
           // }
 
           // BACK (z = Z_ROWS - 1)
           // if (isBackWall(x, y, Z_ROWS - 1)) {
-          //   let _z = curParams.animate_z ? anim : 0;
+          //   let _z = currentAnimateZ ? anim : 0;
           //   setPos(x, y, Z_ROWS - 1, X_GAP, Y_GAP, Z_GAP, 0, 0, -_z);
           //   drawBox(x_pos, y_pos, z_pos, X_SIZE, Y_SIZE, -Z_SIZE, 0, 0, -_z);
           // }
@@ -996,7 +1027,9 @@ sketch.blendMode(sketch.BLEND);
         }
       }
 
-      drawCure2();
+      //drawCure2();
+      //drawCube();
+      drawOptimizedWalls()
     }	
 
   
@@ -1041,7 +1074,29 @@ sketch.blendMode(sketch.BLEND);
         sketch.box(X_SIZE + _x , Y_SIZE - _y, Z_SIZE + _z);
 			sketch.pop();
 		}
-  },
+
+    function drawBox2(x_pos, y_pos, z_pos, X_SIZE, Y_SIZE, Z_SIZE, _x, _y, _z) {
+      sketch.push();
+      sketch.translate(x_pos, y_pos, z_pos);
+
+      // Dynamiczne skalowanie na podstawie parametrów i audio
+      let sX = Math.max(1, X_SIZE + _x);
+      let sY = Math.max(1, Y_SIZE - _y);
+      let sZ = Math.max(1, Z_SIZE + _z);
+
+      sketch.scale(sX, sY, sZ);
+      
+      // Rysowanie modelu (jeśli createModel zadziałał, boxModel nie jest pusty)
+      if (boxModel) {
+          sketch.model(boxModel);
+      } else {
+          // Fallback w razie problemów z modelem
+          sketch.box(1);
+      }
+      
+      sketch.pop();
+}
+    },
     
   }
   

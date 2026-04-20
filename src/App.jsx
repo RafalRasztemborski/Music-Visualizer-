@@ -183,9 +183,11 @@ const sketches = {
       //myShader = sketch.loadShader('/shader/shader.vert', '/shader/shader.frag')
       sketch.createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT, sketch.WEBGL);
       //sketch.hint(sketch.ENABLE_DEPTH_TEST); // sketch.hint is not a function
-      sketch.background(25); // tylko raz
-        //sketch.rectMode(sketch.CENTER);
-       // inicjalizacja z aktualnych sliderów
+      //sketch.pixelDensity(1); //real game changer in terms of fps
+      //sketch.noStroke();
+      //sketch.noSmooth(); 
+      
+      // inicjalizacja z aktualnych sliderów
       state = { ...paramsRef.current };
       target = { ...paramsRef.current };
 
@@ -219,17 +221,41 @@ const sketches = {
         let hasChanged = false;
       
           
-        //   // 🔹 TRAIL (zamiast background)
-        //       sketch.push();
-        //       sketch.resetMatrix();
-        //       sketch.translate(-sketch.width / 2, -sketch.height / 2);
+        //🔹 TRAIL (zamiast background) TO DO: przesun glębie bo urywa obraz
+              // sketch.push();
+              // sketch.resetMatrix();
+              // sketch.translate(-sketch.width / 2, -sketch.height / 2);
 
-        //       sketch.noStroke();
-        //       sketch.fill(25, 25, 25, state.bg_fadeOut);
-        //       sketch.rect(0, 0, sketch.width, sketch.height);
+              // sketch.noStroke();
+              // sketch.fill(0, 0, 0, paramsRef.current.bg_fadeOut);
+              // sketch.rect(0, 0, sketch.width, sketch.height);
 
-        //       sketch.pop();
+              // sketch.pop();
         // // TRAIL 
+
+
+          // --- Wewnątrz p5.draw ---
+          // TRAIL 2
+          sketch.push();
+          // 1. Resetujemy macierz, aby prostokąt pokrył cały ekran
+          sketch.resetMatrix();
+
+          // 2. WYŁĄCZAMY TEST GŁĘBI (To zastępuje niedziałające hint)
+          // Dzięki temu prostokąt nie będzie "blokowany" przez sześciany w 3D
+          const gl = sketch.drawingContext;
+          gl.disable(gl.DEPTH_TEST);
+
+          // 3. Rysujemy prostokąt czyszczący (Trail)
+          sketch.noStroke();
+          // state.bg_fadeOut: 0-255 (np. 20 dla długiego trailu)
+          sketch.fill(0, 0, 0, paramsRef.current.bg_fadeOut); 
+          sketch.rect(-sketch.width / 2, -sketch.height / 2, sketch.width, sketch.height);
+
+          // 4. WŁĄCZAMY TEST GŁĘBI z powrotem dla reszty obiektów 3D
+          gl.enable(gl.DEPTH_TEST);
+          sketch.pop();
+
+          // --- Tutaj dalej Twoje rysowanie boxów ---
 
         // 1. Wyłączenie sprawdzania głębi (Najszybszy "Hack")
         // Jeśli Twój trail musi być rysowany w ten sposób, musisz tymczasowo wyłączyć depth test, aby p5 nie próbowało obliczać, czy prostokąt trailu jest przed czy za sześcianami.
@@ -247,7 +273,7 @@ const sketches = {
 
 
         // 3 opcja
-        sketch.background(25, 25, 25, state.bg_fadeOut);
+        //sketch.background(25, 25, 25, 50);
 
 
 
@@ -558,92 +584,162 @@ const sketches = {
           );
         }
         
-        for (let x = 0; x < X_ROWS; x++) {
-          for (let y = 0; y < Y_ROWS; y++) { 
-            for (let z = 0; z < Z_ROWS; z++) {
-              if (isFrontWall(x, y, z)) {
-                i++
-                const animation = sketch.sq(sc * 
-                  sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
-                        sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
-                      20) + 10;
+        // for (let x = 0; x < X_ROWS; x++) {
+        //   for (let y = 0; y < Y_ROWS; y++) { 
+        //     for (let z = 0; z < Z_ROWS; z++) {
+        //       if (isFrontWall(x, y, z)) {
+        //         i++
+        //         const animation = sketch.sq(sc * 
+        //           sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
+        //                 sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
+        //               20) + 10;
                 
-                //let _z = sc; //sketch.round(sc * 
-                //let _z = (paramsRef.current.animate_z) ? animation : 0; FAJNY EFEKT
-                let _z = (paramsRef.current.animate_z) ? animation : 0;
-                setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, 0, _z);
-                // drawBox(x_pos, y_pos, z_pos, X_SIZE , Y_SIZE, Z_SIZE, 0, 0, _z)
-              } else 
-              if (isBackWall(x, y, z)) {
+        //         //let _z = sc; //sketch.round(sc * 
+        //         //let _z = (paramsRef.current.animate_z) ? animation : 0; FAJNY EFEKT
+        //         let _z = (paramsRef.current.animate_z) ? animation : 0;
+        //         setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, 0, _z);
+        //         // drawBox(x_pos, y_pos, z_pos, X_SIZE , Y_SIZE, Z_SIZE, 0, 0, _z)
+        //       } else 
+        //       if (isBackWall(x, y, z)) {
                 
-                const animation = sketch.sq(sc * sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
-                      sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
-                      20) // TU ZAMIAST WARTOSCI 20 chcialbym miec plynna animacje po otrzymaniu BASSU. Nie skokową, plynną
+        //         const animation = sketch.sq(sc * sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
+        //               sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
+        //               20) // TU ZAMIAST WARTOSCI 20 chcialbym miec plynna animacje po otrzymaniu BASSU. Nie skokową, plynną
                 
-                let _z = (paramsRef.current.animate_z) ? animation : 0;
+        //         let _z = (paramsRef.current.animate_z) ? animation : 0;
 
-                setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, 0, -_z);
-                if (isVisible(x_pos, y_pos, z_pos)) {
-                  //drawBox(x_pos, y_pos, z_pos, X_SIZE , Y_SIZE, -Z_SIZE, 0, 0, -_z)
-                }
+        //         setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, 0, -_z);
+        //         if (isVisible(x_pos, y_pos, z_pos)) {
+        //           //drawBox(x_pos, y_pos, z_pos, X_SIZE , Y_SIZE, -Z_SIZE, 0, 0, -_z)
+        //         }
                 
-              } else 
-              if (isLeftWall(x, y, z)) {
-                const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
-                      sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
-                      (bassAnim * 500)) // TU ZAMIAST WARTOSCI 20 chcialbym miec plynna animacje po otrzymaniu BASSU. Nie skokową, plynną
+        //       } else 
+        //       if (isLeftWall(x, y, z)) {
+        //         const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
+        //               sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
+        //               (bassAnim * 500)) // TU ZAMIAST WARTOSCI 20 chcialbym miec plynna animacje po otrzymaniu BASSU. Nie skokową, plynną
 
-                let _x = (paramsRef.current.animate_x) ? animation : 0;
+        //         let _x = (paramsRef.current.animate_x) ? animation : 0;
                 
-                setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, -_x, 0, 0);
-                if (isVisible(x_pos, y_pos, z_pos)) {
-                  // TU CIEKAWE WKLESNIECIE
-                  drawBox(x_pos - (sc * _x ), y_pos, z_pos, -X_SIZE , Y_SIZE, Z_SIZE, -_x, 0, 0)
-                }
-              } else 
-              if (isRightWall(x, y, z)) {	
-                const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
-                      sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
-                      (bassAnim * 500)) // TU ZAMIAST WARTOSCI 20 chcialbym miec plynna animacje po otrzymaniu BASSU. Nie skokową, plynną
+        //         setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, -_x, 0, 0);
+        //         if (isVisible(x_pos, y_pos, z_pos)) {
+        //           // TU CIEKAWE WKLESNIECIE
+        //           drawBox(x_pos - (sc * _x ), y_pos, z_pos, -X_SIZE , Y_SIZE, Z_SIZE, -_x, 0, 0)
+        //         }
+        //       } else 
+        //       if (isRightWall(x, y, z)) {	
+        //         const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
+        //               sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 
+        //               (bassAnim * 500)) // TU ZAMIAST WARTOSCI 20 chcialbym miec plynna animacje po otrzymaniu BASSU. Nie skokową, plynną
                 
-                let _x = (paramsRef.current.animate_x) ? animation : 0;
+        //         let _x = (paramsRef.current.animate_x) ? animation : 0;
 
-                setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, _x, 0, 0);
-                if (isVisible(x_pos, y_pos, z_pos)) {
-                  drawBox(x_pos  + (sc * _x ), y_pos, z_pos, -X_SIZE , Y_SIZE, Z_SIZE, -_x, 0, 0)
-                }
-              } else 
-              if (isTopWall(x, y, z)) {	
-                const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
-                      sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
-                      bassAnim * 400)
+        //         setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, _x, 0, 0);
+        //         if (isVisible(x_pos, y_pos, z_pos)) {
+        //           drawBox(x_pos  + (sc * _x ), y_pos, z_pos, -X_SIZE , Y_SIZE, Z_SIZE, -_x, 0, 0)
+        //         }
+        //       } else 
+        //       if (isTopWall(x, y, z)) {	
+        //         const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
+        //               sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
+        //               bassAnim * 400)
 
-                let _y = (paramsRef.current.animate_y) ? animation : 0;
+        //         let _y = (paramsRef.current.animate_y) ? animation : 0;
                 
-                setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, -_y, 0);
-                if (isVisible(x_pos, y_pos, z_pos)) { 
-                  drawBox(x_pos , y_pos + (sc * _y ), z_pos, X_SIZE , Y_SIZE, Z_SIZE, 0, -_y, 0)
-                }
-              } else 
-              if (isBottomWall(x, y, z)) {
-                const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
-                      sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
-                      bassAnim * 400);
+        //         setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, -_y, 0);
+        //         if (isVisible(x_pos, y_pos, z_pos)) { 
+        //           drawBox(x_pos , y_pos + (sc * _y ), z_pos, X_SIZE , Y_SIZE, Z_SIZE, 0, -_y, 0)
+        //         }
+        //       } else 
+        //       if (isBottomWall(x, y, z)) {
+        //         const animation = sketch.sq(sc * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * 
+        //               sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * 
+        //               bassAnim * 400);
 
-                let _y = (paramsRef.current.animate_y) ? animation : 0;
+        //         let _y = (paramsRef.current.animate_y) ? animation : 0;
 
-                setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, _y, 0);
-                if (isVisible(x_pos, y_pos, z_pos)) {
-                  drawBox(x_pos, y_pos - (sc * _y ), z_pos, X_SIZE , Y_SIZE, Z_SIZE, 0, -_y, 0)
-                }
-              // EDGES
-              } else {
-                //setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, 0, 0);
-                //drawBox(x_pos, y_pos, z_pos,X_SIZE , Y_SIZE, Z_SIZE, 0, 0, 0)
-              }
-            }
+        //         setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, _y, 0);
+        //         if (isVisible(x_pos, y_pos, z_pos)) {
+        //           drawBox(x_pos, y_pos - (sc * _y ), z_pos, X_SIZE , Y_SIZE, Z_SIZE, 0, -_y, 0)
+        //         }
+        //       // EDGES
+        //       } else {
+        //         //setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, 0, 0, 0);
+        //         //drawBox(x_pos, y_pos, z_pos,X_SIZE , Y_SIZE, Z_SIZE, 0, 0, 0)
+        //       }
+        //     }
+        //   }
+        // }
+
+        // --- ZOPTYMALIZOWANA LOGIKA RYSOWANIA ŚCIAN ---
+// Wywołaj to wewnątrz draw() zamiast starej potrójnej pętli
+
+      const curParams = paramsRef.current;
+      const scVal = sc; // Cache Twojego incrementera
+
+      // 1. FRONT & BACK (Stałe Z)
+      for (let x = 0; x < X_ROWS; x++) {
+        for (let y = 0; y < Y_ROWS; y++) {
+          // Wspólna animacja dla tych ścian
+          const anim = sketch.sq(scVal * sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * 20);
+
+          // FRONT (z = 0)
+          // if (isFrontWall(x, y, 0)) {
+          //   let _z = curParams.animate_z ? anim + 10 : 0;
+          //   setPos(x, y, 0, X_GAP, Y_GAP, Z_GAP, 0, 0, _z);
+          //   drawBox(x_pos, y_pos, z_pos, X_SIZE, Y_SIZE, Z_SIZE, 0, 0, _z);
+          // }
+
+          // BACK (z = Z_ROWS - 1)
+          // if (isBackWall(x, y, Z_ROWS - 1)) {
+          //   let _z = curParams.animate_z ? anim : 0;
+          //   setPos(x, y, Z_ROWS - 1, X_GAP, Y_GAP, Z_GAP, 0, 0, -_z);
+          //   drawBox(x_pos, y_pos, z_pos, X_SIZE, Y_SIZE, -Z_SIZE, 0, 0, -_z);
+          // }
+        }
+      }
+
+      // 2. LEFT & RIGHT (Stałe X)
+      for (let y = 0; y < Y_ROWS; y++) {
+        for (let z = 0; z < Z_ROWS; z++) {
+          const anim = sketch.sq(scVal * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * sketch.sin((y / (Y_ROWS - 1)) * sketch.PI) * (bassAnim * 500));
+
+          // LEFT (x = 0)
+          if (isLeftWall(0, y, z)) {
+            let _x = curParams.animate_x ? anim : 0;
+            setPos(0, y, z, X_GAP, Y_GAP, Z_GAP, -_x, 0, 0);
+            drawBox(x_pos - (scVal * _x * 2), y_pos, z_pos, -X_SIZE, Y_SIZE, Z_SIZE, -_x, 0, 0);
+          }
+
+          // RIGHT (x = X_ROWS - 1)
+          if (isRightWall(X_ROWS - 1, y, z)) {
+            let _x = curParams.animate_x ? anim : 0;
+            setPos(X_ROWS - 1, y, z, X_GAP, Y_GAP, Z_GAP, _x, 0, 0);
+            drawBox(x_pos + (scVal * _x * 2), y_pos, z_pos, -X_SIZE, Y_SIZE, Z_SIZE, -_x, 0, 0);
           }
         }
+      }
+
+      // 3. TOP & BOTTOM (Stałe Y)
+      for (let x = 0; x < X_ROWS; x++) {
+        for (let z = 0; z < Z_ROWS; z++) {
+          const anim = sketch.sq(scVal * sketch.sin((z / (Z_ROWS - 1)) * sketch.PI) * sketch.sin((x / (X_ROWS - 1)) * sketch.PI) * bassAnim * 400);
+
+          // TOP (y = 0)
+          if (isTopWall(x, 0, z)) {
+            let _y = curParams.animate_y ? anim : 0;
+            setPos(x, 0, z, X_GAP, Y_GAP, Z_GAP, 0, -_y, 0);
+            drawBox(x_pos, y_pos + (scVal * _y), z_pos, X_SIZE, Y_SIZE, Z_SIZE, 0, -_y, 0);
+          }
+
+          // BOTTOM (y = Y_ROWS - 1)
+          if (isBottomWall(x, Y_ROWS - 1, z)) {
+            let _y = curParams.animate_y ? anim : 0;
+            setPos(x, Y_ROWS - 1, z, X_GAP, Y_GAP, Z_GAP, 0, _y, 0);
+            drawBox(x_pos, y_pos - (scVal * _y), z_pos, X_SIZE, Y_SIZE, Z_SIZE, 0, -_y, 0);
+          }
+        }
+      }
     }	
 
 		function isFrontWall(x, y, z) {

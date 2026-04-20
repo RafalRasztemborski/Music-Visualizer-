@@ -771,7 +771,7 @@ function DebugOverlay({ params, bands, debug }) {
       <div>smoothBass: {debug.smoothBass}</div>
       <div>incrementerForAnimation: {debug.incrementerForAnimation}</div>
       
-      <div>FPS: {debug.FPS}</div>
+      <div style={{"color": debug.FPS >= 50 ? "green": "red"}}>FPS: {debug.FPS}</div>
       <div></div>
     </div>
   );

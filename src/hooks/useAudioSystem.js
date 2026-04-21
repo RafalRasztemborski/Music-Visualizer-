@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
-import { getBands } from "./../audio/analyser";
-import { useAudioEngine } from "./useAudioEngine";
+import { useEffect, useRef } from 'react';
+import { getBands } from './../audio/analyser';
+import { useAudioEngine } from './useAudioEngine';
 import { createKick } from './../audio/kick';
 
-import { createSnare } from "./../audio/snare";
+import { createSnare } from './../audio/snare';
 
 export function useAudioSystem() {
   const { ctx, analyser, data } = useAudioEngine();
@@ -31,7 +31,7 @@ export function useAudioSystem() {
   }, []);
 
   const playKick = () => {
-    if (ctx.current.state === "suspended") {
+    if (ctx.current.state === 'suspended') {
       ctx.current.resume();
     }
 
@@ -39,13 +39,12 @@ export function useAudioSystem() {
   };
 
   const playSnare = () => {
-  if (ctx.current.state === "suspended") {
-    ctx.current.resume();
-  }
+    if (ctx.current.state === 'suspended') {
+      ctx.current.resume();
+    }
 
-  snareRef.current?.();
-};
-  
+    snareRef.current?.();
+  };
 
   return { playKick, playSnare, bandsRef };
 }

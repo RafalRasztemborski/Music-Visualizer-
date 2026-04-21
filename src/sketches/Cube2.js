@@ -1,6 +1,5 @@
 export default function Cube(settingsRef) {
   return function (p) {
-
     let X_ROWS = 11;
     let Y_ROWS = 11;
     let Z_ROWS = 11;
@@ -27,14 +26,13 @@ export default function Cube(settingsRef) {
 
         p.translate(
           -((X_ROWS * X_SIZE) / 2),
-          ((Y_ROWS * Y_SIZE) / 2),
-          ((Z_ROWS * Z_SIZE) / 2)
+          (Y_ROWS * Y_SIZE) / 2,
+          (Z_ROWS * Z_SIZE) / 2,
         );
 
         for (let x = 0; x < X_ROWS; x++) {
           for (let y = 0; y < Y_ROWS; y++) {
             for (let z = 0; z < Z_ROWS; z++) {
-
               x_pos = (X_SIZE + set.X_GAP) * x;
               y_pos = -(Y_SIZE + set.Y_GAP) * y;
               z_pos = -(Z_SIZE + set.Z_GAP) * z;
@@ -46,7 +44,7 @@ export default function Cube(settingsRef) {
             }
           }
         }
-      }
+      },
     };
   };
 }

@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect } from 'react';
 
 export function createKick(ctx, analyser) {
   return () => {
@@ -7,7 +7,7 @@ export function createKick(ctx, analyser) {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
-    osc.type = "sine";
+    osc.type = 'sine';
 
     osc.frequency.setValueAtTime(150, t);
     osc.frequency.exponentialRampToValueAtTime(50, t + 0.1);
@@ -39,7 +39,7 @@ export function useKick() {
     const ctx = ctxRef.current;
     if (!ctx) return;
 
-    if (ctx.state === "suspended") {
+    if (ctx.state === 'suspended') {
       ctx.resume();
     }
 
@@ -48,4 +48,3 @@ export function useKick() {
 
   return { playKick };
 }
-

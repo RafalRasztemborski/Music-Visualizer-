@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 import { useAnalyser } from './../audio/analyser';
 
 export function useAudioReactive() {
@@ -35,12 +35,12 @@ function getBands(analyser, dataArray) {
 
   return {
     // Czysty, głęboki kick (uderzenie stopy)
-    bass: getEnergy(dataArray, 2, 10), 
-    
+    bass: getEnergy(dataArray, 2, 10),
+
     // "Puknięcie" werbla / środek pasma
     // Zaczynamy wyżej, żeby nie łapać ogona basu
-    mid: getEnergy(dataArray, 40, 120), 
-    
+    mid: getEnergy(dataArray, 40, 120),
+
     // Cyknięcia hi-hatu i talerzy
     high: getEnergy(dataArray, 180, 250),
   };

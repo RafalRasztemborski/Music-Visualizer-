@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from "react";
-import Viewer from "./components/Viewer";
-import Sidebar from "./components/Sidebar";
-import Controls from "./components/Controls";
-import Cube from "./sketches/Cube";
-import Cube2 from "./sketches/Cube2";
-import "./styles.css";
+import { useState, useRef, useEffect } from 'react';
+import Viewer from './components/Viewer';
+import Sidebar from './components/Sidebar';
+import Controls from './components/Controls';
+import Cube from './sketches/Cube';
+import Cube2 from './sketches/Cube2';
+import './styles.css';
 
 // export default function App() {
 //   const sketches = [
@@ -29,7 +29,7 @@ export default function App() {
     Z_GAP: 5,
     X_ROTATE: 0.5,
     Y_ROTATE: 0.5,
-    Z_ROTATE: 0
+    Z_ROTATE: 0,
   });
 
   //const sketch = Cube2(settings);

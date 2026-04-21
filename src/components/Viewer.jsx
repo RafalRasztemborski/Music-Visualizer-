@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import p5 from "p5";
+import { useEffect, useRef } from 'react';
+import p5 from 'p5';
 
 export default function Viewer({ sketch }) {
   const containerRef = useRef(null);
@@ -20,11 +20,7 @@ export default function Viewer({ sketch }) {
       let currentSketch;
 
       p.setup = () => {
-        p.createCanvas(
-          container.offsetWidth,
-          container.offsetHeight,
-          p.WEBGL
-        );
+        p.createCanvas(container.offsetWidth, container.offsetHeight, p.WEBGL);
 
         currentSketch = sketchRef.current(p);
         currentSketch?.setup?.();
@@ -37,10 +33,7 @@ export default function Viewer({ sketch }) {
       };
 
       p.windowResized = () => {
-        p.resizeCanvas(
-          container.offsetWidth,
-          container.offsetHeight
-        );
+        p.resizeCanvas(container.offsetWidth, container.offsetHeight);
       };
     };
 

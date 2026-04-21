@@ -1,4 +1,4 @@
-import Cube from "./Cube";
+import Cube from './Cube';
 
 export default Cube({
   X_GAP: 5,
@@ -6,5 +6,5 @@ export default Cube({
   Z_GAP: 5,
   X_ROTATE: 30,
   Y_ROTATE: 30,
-  Z_ROTATE: 0
+  Z_ROTATE: 0,
 });

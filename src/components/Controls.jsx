@@ -1,9 +1,8 @@
 export default function Controls({ settings, setSettings }) {
-
   function update(key, value) {
-    setSettings(prev => ({
+    setSettings((prev) => ({
       ...prev,
-      [key]: parseFloat(value)
+      [key]: parseFloat(value),
     }));
   }
 
@@ -11,7 +10,7 @@ export default function Controls({ settings, setSettings }) {
     <div className="sidebar">
       <h3>Controls</h3>
 
-      {Object.keys(settings).map(key => (
+      {Object.keys(settings).map((key) => (
         <div key={key}>
           <label>{key}</label>
           <input

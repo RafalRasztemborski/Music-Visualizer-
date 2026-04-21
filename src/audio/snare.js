@@ -15,7 +15,7 @@ export function createSnare(ctx, analyser) {
     noise.buffer = buffer;
 
     const noiseFilter = ctx.createBiquadFilter();
-    noiseFilter.type = "highpass";
+    noiseFilter.type = 'highpass';
     noiseFilter.frequency.value = 2500; // 👈 mocne odcięcie dołu
 
     const noiseGain = ctx.createGain();
@@ -31,12 +31,12 @@ export function createSnare(ctx, analyser) {
 
     // === BODY (klik / snap) ===
     const osc = ctx.createOscillator();
-    osc.type = "triangle";
+    osc.type = 'triangle';
     osc.frequency.setValueAtTime(500, t); // 👈 już OK
 
     // 🔥 DODAJEMY FILTR (to było kluczowe)
     const oscFilter = ctx.createBiquadFilter();
-    oscFilter.type = "highpass";
+    oscFilter.type = 'highpass';
     oscFilter.frequency.value = 300; // 👈 usuwa resztki basu
 
     const oscGain = ctx.createGain();

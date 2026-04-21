@@ -606,7 +606,21 @@ const sketches = {
               //sketch.ambientMaterial(200);
               sketch.fill(r, g, b);
               //sketch.normalMaterial(r, g, b);
-          }
+          } else {
+            sketch.colorMode(sketch.HSB, 360, 100, 100, 1);
+
+            // Przykład koloru Psytrance reagującego na bas
+            let hue = sketch.map(smoothBass, 0, 1, 280, 360); // Przejście od fioletu do magenty
+            sketch.fill(hue, 100, 100);
+            sketch.stroke(hue, 80, 100);
+
+
+            sketch.noStroke();
+          // Kolor bazowy (neonowa zieleń)
+          sketch.emissiveMaterial(110, 100, 100); 
+          sketch.box(X_SIZE, Y_SIZE, Z_SIZE);
+        }
+        
         
 
         function isVisible(x, y, z) {

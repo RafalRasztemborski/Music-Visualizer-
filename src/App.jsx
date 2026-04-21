@@ -69,7 +69,7 @@ const sketches = {
 
       beatDetector: {type: "checkbox", default: true},
 
-      z_position: { type: "range", min: -130, max: 2000, default: 0 },
+      z_position: { type: "range", min: -2000, max: 800, default: 0 },
       Crazy_z_position: { type: "range", min: -50, max: 50, default: 0 },
 
       animate_x: {type: "checkbox", default: true},
@@ -518,7 +518,7 @@ const sketches = {
           rotZ += dt * (state.rotationSpped/100);
         } 
 
-        sketch.translate(0, 0, state.z_position)
+        sketch.translate(0, 0, paramsRef.current.z_position)
 
         sketch.rotateX(rotX)
         sketch.rotateY(rotY)
@@ -623,13 +623,28 @@ const sketches = {
         
         
 
-        function isVisible(x, y, z) {
+        function isVisible2(x, y, z) {
           const margin = 500; // dodatkowy margines dla widoczności
           return (
             x > -SCREEN_WIDTH/2 - margin && x < SCREEN_WIDTH/2 + margin &&
             y > -SCREEN_HEIGHT/2 - margin && y < SCREEN_HEIGHT/2 + margin &&
             z > -2000 && z < 2000 // zakres renderu w głąb
           );
+        }
+
+        function isVisible(x, y, z) {
+            // Musimy dodać z_position, bo cały cube jest przesunięty w głąb
+            const finalZ = z + state.z_position;
+            
+            // Margines, żeby obiekty nie znikały "na styku" krawędzi ekranu
+            const margin = 200; 
+            
+            return (
+                x > -sketch.width / 2 - margin && x < sketch.width / 2 + margin &&
+                y > -sketch.height / 2 - margin && y < sketch.height / 2 + margin 
+                &&
+                finalZ > -1000 && finalZ < 700 // Zakres widoczności w osi Z
+            );
         }
         
     
@@ -673,12 +688,12 @@ const sketches = {
       const totalDepth = Z_ROWS * stepZ;
 
       // Helper do rysowania pojedynczego boxa z opcjonalną animacją
-      const renderBox = (animValue = 0, ax = 0, ay = 0, az = 0) => {
+      const renderBox = (animValue = 0, ax = 0, ay = 0, az = 0, x_size = X_SIZE, y_size = Y_SIZE, z_size = Z_SIZE) => {
           sketch.push();
           if (animValue !== 0) {
               sketch.translate(ax, ay, az);
           }
-          sketch.box(X_SIZE, Y_SIZE, Z_SIZE);
+          sketch.box(x_size, y_size , z_size );
           sketch.pop();
       };
 
@@ -689,13 +704,14 @@ const sketches = {
       //         // FRONT (z = 0)
       //         if (isFrontWall(x, y, 0)) {
       //             const anim = paramsRef.current.animate_z ? sketch.sq(sc * sinX[x] * sinY[y] * 20) : 0;
+                  
       //             sketch.push();
       //             sketch.translate(
       //                 -totalWidth / 2 + x * stepX + stepX / 2,
       //                 totalHeight / 2 - y * stepY - stepY / 2,
       //                 -totalDepth / 2 + stepZ / 2
       //             );
-      //             renderBox(anim, 0, 0, anim);
+      //             renderBox(anim, 0, 0, -anim);
       //             sketch.pop();
       //         }
       //         // BACK (z = Z_ROWS - 1)
@@ -707,7 +723,7 @@ const sketches = {
       //                 totalHeight / 2 - y * stepY - stepY / 2,
       //                 totalDepth / 2 - stepZ / 2
       //             );
-      //             renderBox(anim, 0, 0, -anim);
+      //             renderBox(anim, 0, 0, anim);
       //             sketch.pop();
       //         }
       //     }
@@ -718,29 +734,30 @@ const sketches = {
       for (let y = 0; y < Y_ROWS; y++) {
           for (let z = 0; z < Z_ROWS; z++) {
               const anim = paramsRef.current.animate_x ? sketch.sq(sc * sinZ[z] * sinY[y] * (bassAnim * 500)) : 0;
-              
-              // LEFT (x = 0)
-              if (isLeftWall(0, y, z)) {
-                  sketch.push();
-                  sketch.translate(
-                      -totalWidth / 2 + stepX / 2,
-                      totalHeight / 2 - y * stepY - stepY / 2,
-                      -totalDepth / 2 + z * stepZ + stepZ / 2
-                  );
-                  renderBox(anim, -anim, 0, 0);
-                  sketch.pop();
-              }
-              // RIGHT (x = X_ROWS - 1)
-              if (isRightWall(X_ROWS - 1, y, z)) {
-                  sketch.push();
-                  sketch.translate(
-                      totalWidth / 2 - stepX / 2,
-                      totalHeight / 2 - y * stepY - stepY / 2,
-                      -totalDepth / 2 + z * stepZ + stepZ / 2
-                  );
-                  renderBox(anim, anim, 0, 0);
-                  sketch.pop();
-              }
+            // LEFT (x = 0)
+            const posY = totalHeight / 2 - y * stepY - stepY / 2;
+            const posZ = -totalDepth / 2 + z * stepZ + stepZ / 2;
+
+            // LEFT
+            if (isLeftWall(0, y, z)) {
+                const posX = -totalWidth / 2 + stepX / 2;
+                if (isVisible(posX, posY, posZ)) { // <--- SPRAWDZANIE // UWGLEDNIJ SIZE JESZCZE 
+                    sketch.push();
+                    sketch.translate(posX, posY, posZ);
+                    renderBox(anim, -anim, 0, 0, X_SIZE + anim);
+                    sketch.pop();
+                }
+            }
+            // RIGHT
+            if (isRightWall(X_ROWS - 1, y, z)) {
+                const posX = totalWidth / 2 - stepX / 2;
+                if (isVisible(posX, posY, posZ)) { // <--- SPRAWDZANIE
+                    sketch.push();
+                    sketch.translate(posX, posY, posZ);
+                    renderBox(anim, anim, 0, 0, X_SIZE + anim);
+                    sketch.pop();
+                }
+            }
           }
       }
 
@@ -750,28 +767,29 @@ const sketches = {
           for (let z = 0; z < Z_ROWS; z++) {
               const anim = paramsRef.current.animate_y ? sketch.sq(sc * sinZ[z] * sinX[x] * (bassAnim * 400)) : 0;
 
-              // TOP (y = 0)
-              if (isTopWall(x, 0, z)) {
-                  sketch.push();
-                  sketch.translate(
-                      -totalWidth / 2 + x * stepX + stepX / 2,
-                      totalHeight / 2 - stepY / 2,
-                      -totalDepth / 2 + z * stepZ + stepZ / 2
-                  );
-                  renderBox(anim, 0, anim, 0);
-                  sketch.pop();
-              }
-              // BOTTOM (y = Y_ROWS - 1)
-              if (isBottomWall(x, Y_ROWS - 1, z)) {
-                  sketch.push();
-                  sketch.translate(
-                      -totalWidth / 2 + x * stepX + stepX / 2,
-                      -totalHeight / 2 + stepY / 2,
-                      -totalDepth / 2 + z * stepZ + stepZ / 2
-                  );
-                  renderBox(anim, 0, -anim, 0);
-                  sketch.pop();
-              }
+            const posX = -totalWidth / 2 + x * stepX + stepX / 2;
+            const posZ = -totalDepth / 2 + z * stepZ + stepZ / 2;
+
+            // TOP
+            if (isTopWall(x, 0, z)) {
+                const posY = totalHeight / 2 - stepY / 2;
+                if (isVisible(posX, posY, posZ)) {
+                    sketch.push();
+                    sketch.translate(posX, posY, posZ);
+                    renderBox(anim, 0, anim, 0);
+                    sketch.pop();
+                }
+            }
+            // BOTTOM
+            if (isBottomWall(x, Y_ROWS - 1, z)) {
+                const posY = -totalHeight / 2 + stepY / 2;
+                if (isVisible(posX, posY, posZ)) {
+                    sketch.push();
+                    sketch.translate(posX, posY, posZ);
+                    renderBox(anim, 0, -anim, 0);
+                    sketch.pop();
+                }
+            }
           }
       }
       };
@@ -1043,7 +1061,7 @@ const sketches = {
 
       //drawCure2();
       //drawCube();
-      drawOptimizedWalls()
+       drawOptimizedWalls()
     }	
 
   

@@ -63,6 +63,7 @@ const sketches = {
 
       bg_fadeOut: { type: 'range', min: 0, max: 255, default: 80 },
 
+      drawingTechnique: { type: 'checkbox', default: true },
       dynamicLight: { type: 'checkbox', default: true },
 
       beatDetector: { type: 'checkbox', default: true },
@@ -80,7 +81,7 @@ const sketches = {
       // colorR: { type: "range", min: 0, max: 255, default: 0 },
       // colorG: { type: "range", min: 0, max: 255, default: 255 },
       // colorB: { type: "range", min: 0, max: 255, default: 200 },
-      // opacity: { type: "range", min: 0, max: 255, default: 255 },
+      opacity: { type: 'range', min: 0, max: 255, default: 255 },
 
       // light_1: { type: "range", min: 0, max: 255, default: 0 },
       // light_2: { type: "range", min: 0, max: 255, default: 255 },
@@ -507,16 +508,30 @@ const sketches = {
           rotZ += dt * (state.rotationSpped / 100);
         }
 
-        sketch.translate(0, 0, paramsRef.current.z_position);
+        if (!paramsRef.current.drawingTechnique) {
+          sketch.translate(0, 0, paramsRef.current.z_position);
+        }
 
         sketch.rotateX(rotX);
         sketch.rotateY(rotY);
         sketch.rotateZ(rotZ);
 
-        // sketch.translate(-((X_ROWS * X_SIZE) / 2) + (X_SIZE / 2) - ((X_GAP * X_ROWS) / 2) + (X_GAP / 2),
-        //       ((Y_ROWS * Y_SIZE) / 2) - (Y_SIZE / 2) + ((Y_GAP * Y_ROWS) / 2) - (Y_GAP / 2),
-        //       ((Z_ROWS * Z_SIZE) / 2) - (Z_SIZE / 2) + ((Z_GAP * Z_ROWS) / 2) - (Z_GAP / 2)
-        //     )
+        if (!paramsRef.current.drawingTechnique) {
+          sketch.translate(
+            -((X_ROWS * X_SIZE) / 2) +
+              X_SIZE / 2 -
+              (X_GAP * X_ROWS) / 2 +
+              X_GAP / 2,
+            (Y_ROWS * Y_SIZE) / 2 -
+              Y_SIZE / 2 +
+              (Y_GAP * Y_ROWS) / 2 -
+              Y_GAP / 2,
+            (Z_ROWS * Z_SIZE) / 2 -
+              Z_SIZE / 2 +
+              (Z_GAP * Z_ROWS) / 2 -
+              Z_GAP / 2,
+          );
+        }
 
         const speed = 2;
         const hit = 0.5;
@@ -583,13 +598,13 @@ const sketches = {
         // Koniec 2
 
         if (paramsRef.current.dynamicLight) {
-          let t = sketch.millis() * 0.001;
-          let r = 50 + 50 * sketch.sin(t);
-          let g = 200 + 55 * sketch.sin(t + 2);
+          let t = sketch.millis() * 0.005;
+          let r = 150 + 50 * sketch.sin(t);
+          let g = 150 + 55 * sketch.sin(t + 2);
           let b = 255;
           //sketch.emissiveMaterial(r, g, b);
           //sketch.ambientMaterial(200);
-          sketch.fill(r, g, b);
+          sketch.fill(r, g, b, paramsRef.current.opacity);
           //sketch.normalMaterial(r, g, b);
         } else {
           sketch.colorMode(sketch.HSB, 360, 100, 100, 1);
@@ -619,7 +634,7 @@ const sketches = {
 
         function isVisible(x, y, z) {
           // Musimy dodać z_position, bo cały cube jest przesunięty w głąb
-          const finalZ = z + state.z_position;
+          const finalZ = z + paramsRef.current.z_position;
 
           // Margines, żeby obiekty nie znikały "na styku" krawędzi ekranu
           const margin = 200;
@@ -722,6 +737,14 @@ const sketches = {
           //     }
           // }
 
+          /*
+           function setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, _x, _y, _z) {
+        x_pos = X_SIZE * x + X_GAP * x + _x / 2;
+        y_pos = -(Y_SIZE * y) - Y_GAP * y - _y / 2;
+        z_pos = -(Z_SIZE * z) - Z_GAP * z + _z / 2; //* paramsRef.current.z_position; (wykurwisty param ale psuje)
+        z_pos += z_pos * paramsRef.current.Crazy_z_position;
+        }*/
+
           // --- 2. LEFT & RIGHT (Płaszczyzna YZ, stałe X) ---
           // Pętla po Y i Z
           for (let y = 0; y < Y_ROWS; y++) {
@@ -731,13 +754,15 @@ const sketches = {
                 : 0;
               // LEFT (x = 0)
               const posY = totalHeight / 2 - y * stepY - stepY / 2;
-              const posZ = -totalDepth / 2 + z * stepZ + stepZ / 2;
+              let posZ = -totalDepth / 2 + z * stepZ + stepZ / 2;
+              //posZ -= posZ * paramsRef.current.Crazy_z_position;
 
               // LEFT
               if (isLeftWall(0, y, z)) {
                 const posX = -totalWidth / 2 + stepX / 2;
                 if (isVisible(posX, posY, posZ)) {
                   // <--- SPRAWDZANIE // UWGLEDNIJ SIZE JESZCZE
+
                   sketch.push();
                   sketch.translate(posX, posY, posZ);
                   renderBox(anim, -anim, 0, 0, X_SIZE + anim);
@@ -980,19 +1005,29 @@ const sketches = {
           for (let x = 0; x < X_ROWS; x++) {
             for (let y = 0; y < Y_ROWS; y++) {
               // Wspólna animacja dla tych ścian
-              //const anim = sketch.sq(scVal * sinX[x] * sinY[y] * 20);
+              const anim = sketch.sq(scVal * sinX[x] * sinY[y] * 20);
               // FRONT (z = 0)
-              // if (isFrontWall(x, y, 0)) {
-              //   let _z = currentAnimateZ ? anim + 10 : 0;
-              //   setPos(x, y, 0, X_GAP, Y_GAP, Z_GAP, 0, 0, _z);
-              //   drawBox(x_pos, y_pos, z_pos, X_SIZE, Y_SIZE, Z_SIZE, 0, 0, _z);
-              // }
+              if (isFrontWall(x, y, 0)) {
+                let _z = currentAnimateZ ? anim + 10 : 0;
+                setPos(x, y, 0, X_GAP, Y_GAP, Z_GAP, 0, 0, _z);
+                drawBox(x_pos, y_pos, z_pos, X_SIZE, Y_SIZE, Z_SIZE, 0, 0, _z);
+              }
               // BACK (z = Z_ROWS - 1)
-              // if (isBackWall(x, y, Z_ROWS - 1)) {
-              //   let _z = currentAnimateZ ? anim : 0;
-              //   setPos(x, y, Z_ROWS - 1, X_GAP, Y_GAP, Z_GAP, 0, 0, -_z);
-              //   drawBox(x_pos, y_pos, z_pos, X_SIZE, Y_SIZE, -Z_SIZE, 0, 0, -_z);
-              // }
+              //   if (isBackWall(x, y, Z_ROWS - 1)) {
+              //     let _z = currentAnimateZ ? anim : 0;
+              //     setPos(x, y, Z_ROWS - 1, X_GAP, Y_GAP, Z_GAP, 0, 0, -_z);
+              //     drawBox(
+              //       x_pos,
+              //       y_pos,
+              //       z_pos,
+              //       X_SIZE,
+              //       Y_SIZE,
+              //       -Z_SIZE,
+              //       0,
+              //       0,
+              //       -_z,
+              //     );
+              //   }
             }
           }
 
@@ -1095,7 +1130,11 @@ const sketches = {
 
         //drawCure2();
         //drawCube();
-        drawOptimizedWalls();
+        if (paramsRef.current.drawingTechnique) {
+          drawOptimizedWalls();
+        } else {
+          drawCure2();
+        }
       };
 
       function isFrontWall(x, y, z) {

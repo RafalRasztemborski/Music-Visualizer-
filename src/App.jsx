@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import p5 from 'p5';
 import { useAudioReactive } from './hooks/useAudioReactive';
+import { useAudioReactiveRealTime } from './hooks/useAudioReactiveRealTIme';
 
 // --- Example Sketches ---
 const sketches = {
@@ -56,6 +57,10 @@ const sketches = {
       spinX: { type: 'checkbox', default: false },
       spinY: { type: 'checkbox', default: false },
       spinZ: { type: 'checkbox', default: false },
+
+      bassAnimTreshold: { type: 'range', min: 0, max: 1000, default: 500 },
+      bassAttack: { type: 'range', min: 1, max: 100, default: 50 },
+      decay: { type: 'range', min: 1, max: 100, default: 50 },
 
       // stroke: {type: "range", min: 1, max: 100, default: 5},
 
@@ -124,7 +129,7 @@ const sketches = {
       // MUSIC
       let smoothBass = 0;
       let bassVelocity = 0;
-      let bassAnim = 0;
+
       let beatProgress = 0; // 0 → 1
       let isBeatActive = false;
       let beatDuration = 0.35; // sekundy (czas animacji po uderzeniu)
@@ -145,7 +150,9 @@ const sketches = {
       let currentPreset = null;
 
       // Animacja
-      let sc = 0;
+      let sc = 0; // TO MA WPLYW NA ANIMACJE
+      let bassAnim = 0; // TO MA WPLYW NA ANIMACJE
+
       let incrementerForAnimation = 0;
 
       // STORAGE (FOR ANIMATIONS)
@@ -420,13 +427,23 @@ const sketches = {
 
         // Podlaczenie do audio
         const bands = bandsRef.current.current;
+        //console.log('BANDS', bands);
         const bass = bands.bass;
         //const { bass, mid, high } = bandsRef.current;
         // 🔥 SMOOTH BASS (attack + decay)
-        const attack = 0.1; // jak szybko reaguje na beat
-        const decay = 0.8; // jak wolno opada
-
-        if (bass > smoothBass) {
+        const attack = paramsRef.current.bassAttack / 100; // jak szybko reaguje na beat
+        const decay = paramsRef.current.decay / 100; // 0.2; // jak wolno opada
+        // console.log(
+        //   'attack',
+        //   attack,
+        //   'paramsRef.current.bassAttack',
+        //   paramsRef.current.bassAttack,
+        // );
+        if (
+          bass > smoothBass &&
+          smoothBass < paramsRef.current.bassAnimTreshold / 5000
+        ) {
+          //console.log('smoothBass', smoothBass, 'bassAnim:', bassAnim);
           smoothBass += (bass - smoothBass) * attack;
         } else {
           smoothBass *= decay;
@@ -436,7 +453,7 @@ const sketches = {
           smoothBass = 0;
         }
 
-        bassAnim += (smoothBass - bassAnim) * 0.1;
+        bassAnim += (smoothBass - bassAnim) * 0.1; // TO MA WPLYW NA ANIMACJE
 
         // próg – dostosuj do swojego audio
         const threshold = 0.1;
@@ -487,9 +504,10 @@ const sketches = {
         //Y_GAP = state.Y_GAP + parseInt(mid * (50 / (mid + 1)))
         //X_GAP = state.X_GAP;
         X_GAP = paramsRef.current.X_GAP; //+ parseInt(smoothBass * (60 * (smoothBass + 1)))
-        Y_GAP =
-          paramsRef.current.Y_GAP +
-          Math.floor(smoothBass * (120 * (smoothBass + 1)));
+        // Y_GAP =
+        //   paramsRef.current.Y_GAP +
+        //   Math.floor(smoothBass * (120 * (smoothBass + 1)));
+        Y_GAP = paramsRef.current.Y_GAP;
         Z_GAP = paramsRef.current.Z_GAP;
 
         sketch.rotateX(paramsRef.current.X_ROTATE / 90);
@@ -570,7 +588,7 @@ const sketches = {
         } else {
           //incrementerForAnimation += bass
 
-          sc = sketch.sin(t * 3);
+          sc = sketch.sin(t * 3); // TO MA WPLYW NA ANIMACJE
           //sc = easeInOut(smoothBass);
           //sc = sketch.cos(t * 3);
         }
@@ -655,7 +673,7 @@ const sketches = {
         // CACHEING
         // CACHE!
         const curParams = paramsRef.current;
-        const scVal = sc; // Cache Twojego incrementera
+        const scVal = sc; // Cache Twojego incrementera // SC DO ANIMAJCJI
 
         const currentAnimateX = curParams.animate_x;
         const currentAnimateY = curParams.animate_y;
@@ -687,6 +705,11 @@ const sketches = {
           const totalHeight = Y_ROWS * stepY;
           const totalDepth = Z_ROWS * stepZ;
 
+          const musicData = bandsRef.current.current.data;
+          const low = 85;
+          const mid = 170;
+          const high = 255;
+
           // Helper do rysowania pojedynczego boxa z opcjonalną animacją
           const renderBox = (
             animValue = 0,
@@ -707,35 +730,56 @@ const sketches = {
 
           // --- 1. FRONT & BACK (Płaszczyzna XY, stałe Z) ---
           // Pętla po X i Y
-          // for (let x = 0; x < X_ROWS; x++) {
-          //     for (let y = 0; y < Y_ROWS; y++) {
-          //         // FRONT (z = 0)
-          //         if (isFrontWall(x, y, 0)) {
-          //             const anim = paramsRef.current.animate_z ? sketch.sq(sc * sinX[x] * sinY[y] * 20) : 0;
+          for (let x = 0; x < X_ROWS; x++) {
+            for (let y = 0; y < Y_ROWS; y++) {
+              // 1. Normalizacja współrzędnych do zakresu -1 do 1
+              let normX = sketch.map(x, 0, X_ROWS - 1, -1, 1);
+              let normY = sketch.map(y, 0, Y_ROWS - 1, -1, 1);
 
-          //             sketch.push();
-          //             sketch.translate(
-          //                 -totalWidth / 2 + x * stepX + stepX / 2,
-          //                 totalHeight / 2 - y * stepY - stepY / 2,
-          //                 -totalDepth / 2 + stepZ / 2
-          //             );
-          //             renderBox(anim, 0, 0, -anim);
-          //             sketch.pop();
-          //         }
-          //         // BACK (z = Z_ROWS - 1)
-          //         if (isBackWall(x, y, Z_ROWS - 1)) {
-          //             const anim = paramsRef.current.animate_z ? sketch.sq(sc * sinX[x] * sinY[y] * 20) : 0;
-          //             sketch.push();
-          //             sketch.translate(
-          //                 -totalWidth / 2 + x * stepX + stepX / 2,
-          //                 totalHeight / 2 - y * stepY - stepY / 2,
-          //                 totalDepth / 2 - stepZ / 2
-          //             );
-          //             renderBox(anim, 0, 0, anim);
-          //             sketch.pop();
-          //         }
-          //     }
-          // }
+              // 2. Obliczanie dystansu od środka (0,0)
+              // Używamy sqrt(x^2 + y^2) dla efektu kołowego lub max(abs(x), abs(y)) dla kwadratowego
+              let distFromCenter = sketch.sqrt(normX * normX + normY * normY);
+              let finalDist = sketch.constrain(distFromCenter, 0, 1);
+
+              // 3. Mapowanie na audio: krawędzie (dist ok. 1) -> Bass (low index)
+              // Środek (dist ok. 0) -> High (wysoki index)
+              let audioMapping = 1 - finalDist;
+              let safeIndex = mid + Math.floor(audioMapping * low);
+
+              // Pobieramy wartość z konkretnego pasma
+              const freqMagnitude = musicData ? musicData[safeIndex] : 0;
+
+              // FRONT (z = 0)
+              if (isFrontWall(x, y, 0)) {
+                const anim = paramsRef.current.animate_z
+                  ? sketch.sq(sc * sinX[x] * sinY[y] * (freqMagnitude / 3))
+                  : 0;
+
+                sketch.push();
+                sketch.translate(
+                  -totalWidth / 2 + x * stepX + stepX / 2,
+                  totalHeight / 2 - y * stepY - stepY / 2,
+                  -totalDepth / 2 + stepZ / 2,
+                );
+                renderBox(anim, 0, 0, -anim);
+                sketch.pop();
+              }
+              // BACK (z = Z_ROWS - 1)
+              if (isBackWall(x, y, Z_ROWS - 1)) {
+                const anim = paramsRef.current.animate_z
+                  ? sketch.sq(sc * sinX[x] * sinY[y] * (freqMagnitude / 2))
+                  : 0;
+                sketch.push();
+                sketch.translate(
+                  -totalWidth / 2 + x * stepX + stepX / 2,
+                  totalHeight / 2 - y * stepY - stepY / 2,
+                  totalDepth / 2 - stepZ / 2,
+                );
+                renderBox(anim, 0, 0, anim);
+                sketch.pop();
+              }
+            }
+          }
 
           /*
            function setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, _x, _y, _z) {
@@ -745,13 +789,41 @@ const sketches = {
         z_pos += z_pos * paramsRef.current.Crazy_z_position;
         }*/
 
+          //console.log('bandsRef', bandsRef.current);
+          //console.log('bandsRef', bandsRef);
+          //console.log('musicData', musicData);
           // --- 2. LEFT & RIGHT (Płaszczyzna YZ, stałe X) ---
           // Pętla po Y i Z
           for (let y = 0; y < Y_ROWS; y++) {
             for (let z = 0; z < Z_ROWS; z++) {
+              // 1. Mapujemy y i z na zakres od -1 do 1, gdzie 0 to środek
+              let normY = sketch.map(y, 0, Y_ROWS - 1, -1, 1);
+              let normZ = sketch.map(z, 0, Z_ROWS - 1, -1, 1);
+
+              // 2. Obliczamy odległość od środka (0,0) używając twierdzenia Pitagorasa
+              // dist będzie w zakresie od 0 (środek) do ok. 1.41 (narożniki)
+              let distFromCenter = sketch.sqrt(normY * normY + normZ * normZ);
+
+              // 3. Odwracamy to: chcemy, żeby krawędzie (duży dist) miały mały indeks (Bass)
+              // a środek (mały dist) miał wysoki indeks (High)
+              // Ograniczamy dist do 1.0, żeby nie wyjść poza zakres tablicy danych
+              let finalDist = sketch.constrain(distFromCenter, 0, 1);
+
+              // Inwersja: 1 - finalDist sprawi, że krawędzie = 0 (low), środek = 1 (high)
+              let audioMapping = 1 - finalDist;
+
+              // Wybieramy index z dostępnego pasma (np. do 255)
+              let safeIndex = Math.floor(audioMapping * low);
+
               const anim = paramsRef.current.animate_x
-                ? sketch.sq(sc * sinZ[z] * sinY[y] * (bassAnim * 500))
+                ? sketch.sq(
+                    sc *
+                      sinZ[z] *
+                      sinY[y] *
+                      (musicData ? musicData[safeIndex] / 6 : 1),
+                  )
                 : 0;
+              //console.log(musicData[Math.ceil(255 / y + 1)]);
               // LEFT (x = 0)
               const posY = totalHeight / 2 - y * stepY - stepY / 2;
               let posZ = -totalDepth / 2 + z * stepZ + stepZ / 2;
@@ -787,8 +859,17 @@ const sketches = {
           // Pętla po X i Z
           for (let x = 0; x < X_ROWS; x++) {
             for (let z = 0; z < Z_ROWS; z++) {
+              let normX = sketch.map(x, 0, X_ROWS - 1, -1, 1);
+              let normZ = sketch.map(z, 0, Z_ROWS - 1, -1, 1);
+              let dist = sketch.sqrt(normX * normX + normZ * normZ);
+              let safeIndex = low + Math.floor((1 - dist) * low);
               const anim = paramsRef.current.animate_y
-                ? sketch.sq(sc * sinZ[z] * sinX[x] * (bassAnim * 400))
+                ? sketch.sq(
+                    sc *
+                      sinZ[z] *
+                      sinX[x] *
+                      (musicData ? musicData[safeIndex] / 8 : 1),
+                  )
                 : 0;
 
               const posX = -totalWidth / 2 + x * stepX + stepX / 2;
@@ -1433,19 +1514,33 @@ export default function App() {
   // FOR TRACKING RECORDING
   const [debug, setDebug] = useState({});
 
-  const { playKick, playSnare, bandsRef } = useAudioSystem();
+  // const { playKick, playSnare, bandsRef } = useAudioSystem();
 
-  useKeyPress('Space', playKick);
-  useKeyPress('KeyS', playSnare);
+  // useKeyPress('Space', playKick);
+  // useKeyPress('KeyS', playSnare);
 
-  //const { bands } = useAudioReactive();
-  // SPACJA:
-  //useKeyPress("Space", playKick);
-  //const { playKick } = useKick();
+  const bandsRef = useRef({
+    bass: 0,
+    mid: 0,
+    high: 0,
+    data: new Array(256).fill(0),
+  });
+
+  useAudioReactiveRealTime(bandsRef);
 
   const containerRef = useRef(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // navigator.mediaDevices.enumerateDevices().then((devices) => {
+  //   devices.forEach((d) => {
+  //     //if (d.kind === 'audioinput') {
+  //     //console.log('AUDIO', d.label, d.deviceId);
+  //     // }
+  //   });
+  // });
+
+  //useAudioReactive();
 
   // const containerRef = useRef(null);
   // const [size, setSize] = useState({ width: 0, height: 0 });
@@ -1456,7 +1551,7 @@ export default function App() {
 
     const updateSize = () => {
       const rect = el.getBoundingClientRect();
-      console.log('ON LOAD, rec.width:', rect.width);
+      //console.log('ON LOAD, rec.width:', rect.width);
       setSize({
         width: rect.width,
         height: rect.height,
@@ -1479,6 +1574,7 @@ export default function App() {
         return;
       }
 
+      //console.log('UPDATE AUDIO');
       analyserRef.current.getByteFrequencyData(dataArrayRef.current);
 
       const data = dataArrayRef.current;
@@ -1489,6 +1585,7 @@ export default function App() {
       let high = 0;
 
       const len = data.length;
+      //console.log('LENGTH', len);
 
       for (let i = 0; i < len; i++) {
         const v = data[i] / 255;
@@ -1512,9 +1609,10 @@ export default function App() {
         bass: smooth(current?.bass || 0, bass),
         mid: smooth(current?.mid || 0, mid),
         high: smooth(current?.high || 0, high),
+        data,
       };
 
-      console.log('DATA[0]:', dataArrayRef.current[0]);
+      // console.log('bass:: ', bandsRef.current.bass);
       raf = requestAnimationFrame(updateAudio);
     }
 
@@ -1624,6 +1722,7 @@ export default function App() {
   const audioRef = useRef(null);
   const audioCtxRef = useRef(null);
   let lastKickTime = 0;
+
   function handleAudioUpload(e) {
     const file = e.target.files[0];
     if (!file) return;

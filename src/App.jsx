@@ -1310,66 +1310,110 @@ const sketches = {
   },
 };
 
+const controlGroups = [
+  { title: 'Size', keys: ['X_SIZE', 'Y_SIZE', 'Z_SIZE'] },
+  { title: 'Rows', keys: ['X_ROWS', 'Y_ROWS', 'Z_ROWS'] },
+  { title: 'Spacing', keys: ['X_GAP', 'Y_GAP', 'Z_GAP'] },
+  { title: 'Rotation', keys: ['X_ROTATE', 'Y_ROTATE', 'Z_ROTATE'] },
+  { title: 'Spin', keys: ['spinX', 'spinY', 'spinZ', 'rotationSpped'] },
+  {
+    title: 'Audio',
+    keys: ['bassAnimTreshold', 'bassAttack', 'decay', 'beatDetector'],
+  },
+  {
+    title: 'Position',
+    keys: ['z_position', 'Crazy_z_position'],
+  },
+  {
+    title: 'Animation',
+    keys: ['animate_x', 'animate_y', 'animate_z', 'freeze', 'transitionDuraion'],
+  },
+  {
+    title: 'Render',
+    keys: ['drawingTechnique', 'dynamicLight', 'bg_fadeOut', 'opacity'],
+  },
+];
+
+function formatControlLabel(key) {
+  return key
+    .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .toLowerCase();
+}
+
 // --- Controls Panel ---
 function Controls({ config, values, setValues }) {
+  const groupedKeys = new Set(controlGroups.flatMap((group) => group.keys));
+  const groups = [
+    ...controlGroups,
+    {
+      title: 'Other',
+      keys: Object.keys(config).filter((key) => !groupedKeys.has(key)),
+    },
+  ].filter((group) => group.keys.some((key) => config[key]));
+
+  function renderControl(key) {
+    const conf = config[key];
+
+    if (!conf) return null;
+
+    if (conf.type === 'range') {
+      return (
+        <div key={key} className="control">
+          <div className="label-row">
+            <span className="slider-label">{formatControlLabel(key)}</span>
+            <span className="slider-value">{values[key]}</span>
+          </div>
+          <input
+            className="futuristic-slider"
+            type="range"
+            min={conf.min}
+            max={conf.max}
+            value={values[key]}
+            onChange={(e) =>
+              setValues({ ...values, [key]: Number(e.target.value) })
+            }
+          />
+        </div>
+      );
+    }
+
+    if (conf.type === 'checkbox') {
+      return (
+        <label key={key} className="toggle-control">
+          <span>{formatControlLabel(key)}</span>
+          <input
+            type="checkbox"
+            checked={values[key]}
+            onChange={(e) =>
+              setValues({ ...values, [key]: e.target.checked })
+            }
+          />
+        </label>
+      );
+    }
+
+    return null;
+  }
+
   return (
     <div className="controls-panel">
-      <div className="p-4 border-l border-gray-700">
-        <h2 className="text-lg mb-2">Controls</h2>
-        {Object.entries(config).map(([key, conf]) => {
-          if (conf.type === 'range') {
-            return (
-              // <div key={key} className={"mb-3 slider-container"}>
-              //   <label className={"slider-label"}>{key}: {values[key]}</label>
-              //   <input
-              //     type="range"
-              //     min={conf.min}
-              //     max={conf.max}
-              //     value={values[key]}
-              //     onChange={(e) =>
-              //       setValues({ ...values, [key]: Number(e.target.value) })
-              //     }
-              //   />
-              // </div>
-              <div key={key} className="control">
-                <div className="label-row">
-                  <span className="slider-label">{key}</span>
-                  <span className="slider-value">{values[key]}</span>
-                </div>
-                <input
-                  className="futuristic-slider"
-                  type="range"
-                  min={conf.min}
-                  max={conf.max}
-                  value={values[key]}
-                  onChange={(e) =>
-                    setValues({ ...values, [key]: Number(e.target.value) })
-                  }
-                />
-              </div>
-            );
-          }
-
-          if (conf.type === 'checkbox') {
-            return (
-              <div key={key} className="mb-3">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={values[key]}
-                    onChange={(e) =>
-                      setValues({ ...values, [key]: e.target.checked })
-                    }
-                  />
-                  {key}
-                </label>
-              </div>
-            );
-          }
-
-          return null;
-        })}
+      <div className="controls-panel__header">
+        <span>Parameters</span>
+        <strong>{Object.keys(config).length}</strong>
       </div>
+
+      {groups.map((group) => (
+        <details key={group.title} className="control-group">
+          <summary>
+            <span>{group.title}</span>
+            <small>{group.keys.filter((key) => config[key]).length}</small>
+          </summary>
+          <div className="control-group__content">
+            {group.keys.map((key) => renderControl(key))}
+          </div>
+        </details>
+      ))}
     </div>
   );
 }

@@ -144,6 +144,7 @@ code {
 
 /* LEFT: canvas */
 .canvas-container {
+  position: relative;
   flex: 1;
   display: flex;
   align-items: center;
@@ -158,6 +159,90 @@ code {
   max-height: 100%;
 
   border: thin solid yellow;
+}
+
+.debug-overlay {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 5;
+  min-width: 178px;
+  padding: 10px;
+  color: rgba(245, 247, 250, 0.94);
+  background: rgba(9, 11, 16, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-align: left;
+  pointer-events: none;
+}
+
+.debug-status-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.debug-status,
+.debug-metric,
+.debug-fps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.debug-status {
+  padding: 6px 7px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+}
+
+.debug-status.is-active {
+  color: #ffffff;
+  background: rgba(21, 128, 61, 0.36);
+  border-color: rgba(74, 222, 128, 0.42);
+}
+
+.debug-metrics {
+  display: grid;
+  gap: 5px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.debug-overlay span {
+  color: rgba(245, 247, 250, 0.58);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.debug-overlay strong {
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.debug-fps {
+  margin-top: 8px;
+}
+
+.debug-fps.is-good strong {
+  color: #4ade80;
+}
+
+.debug-fps.is-low strong {
+  color: #fb7185;
 }
 
 /* RIGHT PANEL */
@@ -412,9 +497,7 @@ input[type='range']::-webkit-slider-thumb:hover {
   /* border: 43px solid pink; */
 }
 
-/* transform: scale(0.8); /* spróbuj 0.75 jeśli dalej za duże */
-/* transform-origin: top right; */
-*/ .slider-container {
+.slider-container {
   display: flex;
   align-items: center;
   gap: 10px;

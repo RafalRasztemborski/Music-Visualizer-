@@ -730,68 +730,57 @@ const sketches = {
 
           // --- 1. FRONT & BACK (Płaszczyzna XY, stałe Z) ---
           // Pętla po X i Y
-          for (let x = 0; x < X_ROWS; x++) {
-            for (let y = 0; y < Y_ROWS; y++) {
-              // 1. Normalizacja współrzędnych do zakresu -1 do 1
-              let normX = sketch.map(x, 0, X_ROWS - 1, -1, 1);
-              let normY = sketch.map(y, 0, Y_ROWS - 1, -1, 1);
+          // for (let x = 0; x < X_ROWS; x++) {
+          //   for (let y = 0; y < Y_ROWS; y++) {
+          //     // 1. Normalizacja współrzędnych do zakresu -1 do 1
+          //     let normX = sketch.map(x, 0, X_ROWS - 1, -1, 1);
+          //     let normY = sketch.map(y, 0, Y_ROWS - 1, -1, 1);
 
-              // 2. Obliczanie dystansu od środka (0,0)
-              // Używamy sqrt(x^2 + y^2) dla efektu kołowego lub max(abs(x), abs(y)) dla kwadratowego
-              let distFromCenter = sketch.sqrt(normX * normX + normY * normY);
-              let finalDist = sketch.constrain(distFromCenter, 0, 1);
+          //     // 2. Obliczanie dystansu od środka (0,0)
+          //     // Używamy sqrt(x^2 + y^2) dla efektu kołowego lub max(abs(x), abs(y)) dla kwadratowego
+          //     let distFromCenter = sketch.sqrt(normX * normX + normY * normY);
+          //     let finalDist = sketch.constrain(distFromCenter, 0, 1);
 
-              // 3. Mapowanie na audio: krawędzie (dist ok. 1) -> Bass (low index)
-              // Środek (dist ok. 0) -> High (wysoki index)
-              let audioMapping = 1 - finalDist;
-              let safeIndex = mid + Math.floor(audioMapping * low);
+          //     // 3. Mapowanie na audio: krawędzie (dist ok. 1) -> Bass (low index)
+          //     // Środek (dist ok. 0) -> High (wysoki index)
+          //     let audioMapping = 1 - finalDist;
+          //     let safeIndex = mid + Math.floor(audioMapping * low);
 
-              // Pobieramy wartość z konkretnego pasma
-              const freqMagnitude = musicData ? musicData[safeIndex] : 0;
+          //     // Pobieramy wartość z konkretnego pasma
+          //     const freqMagnitude = musicData ? musicData[safeIndex] : 0;
 
-              // FRONT (z = 0)
-              if (isFrontWall(x, y, 0)) {
-                const anim = paramsRef.current.animate_z
-                  ? sketch.sq(sc * sinX[x] * sinY[y] * (freqMagnitude / 3))
-                  : 0;
+          //     // FRONT (z = 0)
+          //     if (isFrontWall(x, y, 0)) {
+          //       const anim = paramsRef.current.animate_z
+          //         ? sketch.sq(sc * sinX[x] * sinY[y] * (freqMagnitude / 3))
+          //         : 0;
 
-                sketch.push();
-                sketch.translate(
-                  -totalWidth / 2 + x * stepX + stepX / 2,
-                  totalHeight / 2 - y * stepY - stepY / 2,
-                  -totalDepth / 2 + stepZ / 2,
-                );
-                renderBox(anim, 0, 0, -anim);
-                sketch.pop();
-              }
-              // BACK (z = Z_ROWS - 1)
-              if (isBackWall(x, y, Z_ROWS - 1)) {
-                const anim = paramsRef.current.animate_z
-                  ? sketch.sq(sc * sinX[x] * sinY[y] * (freqMagnitude / 2))
-                  : 0;
-                sketch.push();
-                sketch.translate(
-                  -totalWidth / 2 + x * stepX + stepX / 2,
-                  totalHeight / 2 - y * stepY - stepY / 2,
-                  totalDepth / 2 - stepZ / 2,
-                );
-                renderBox(anim, 0, 0, anim);
-                sketch.pop();
-              }
-            }
-          }
+          //       sketch.push();
+          //       sketch.translate(
+          //         -totalWidth / 2 + x * stepX + stepX / 2,
+          //         totalHeight / 2 - y * stepY - stepY / 2,
+          //         -totalDepth / 2 + stepZ / 2,
+          //       );
+          //       renderBox(anim, 0, 0, -anim);
+          //       sketch.pop();
+          //     }
+          //     // BACK (z = Z_ROWS - 1)
+          //     if (isBackWall(x, y, Z_ROWS - 1)) {
+          //       const anim = paramsRef.current.animate_z
+          //         ? sketch.sq(sc * sinX[x] * sinY[y] * (freqMagnitude / 2))
+          //         : 0;
+          //       sketch.push();
+          //       sketch.translate(
+          //         -totalWidth / 2 + x * stepX + stepX / 2,
+          //         totalHeight / 2 - y * stepY - stepY / 2,
+          //         totalDepth / 2 - stepZ / 2,
+          //       );
+          //       renderBox(anim, 0, 0, anim);
+          //       sketch.pop();
+          //     }
+          //   }
+          // }
 
-          /*
-           function setPos(x, y, z, X_GAP, Y_GAP, Z_GAP, _x, _y, _z) {
-        x_pos = X_SIZE * x + X_GAP * x + _x / 2;
-        y_pos = -(Y_SIZE * y) - Y_GAP * y - _y / 2;
-        z_pos = -(Z_SIZE * z) - Z_GAP * z + _z / 2; //* paramsRef.current.z_position; (wykurwisty param ale psuje)
-        z_pos += z_pos * paramsRef.current.Crazy_z_position;
-        }*/
-
-          //console.log('bandsRef', bandsRef.current);
-          //console.log('bandsRef', bandsRef);
-          //console.log('musicData', musicData);
           // --- 2. LEFT & RIGHT (Płaszczyzna YZ, stałe X) ---
           // Pętla po Y i Z
           for (let y = 0; y < Y_ROWS; y++) {
@@ -1386,21 +1375,45 @@ function Controls({ config, values, setValues }) {
 }
 
 function DebugOverlay({ params, bands, debug }) {
-  return (
-    <div style={{ position: 'absolute', top: 100, left: 30 }}>
-      <div>REC: {String(debug.isRecording)}</div>
-      <div>PLAY: {String(debug.isPlaying)}</div>
-      <div>frames: {debug.frames}</div>
-      <div>time: {debug.time?.toFixed(2)}</div>
-      <div>BASS: {bands.current.bass}</div>
-      <div>MID: {bands.current.mid}</div>
-      <div>smoothBass: {debug.smoothBass}</div>
-      <div>incrementerForAnimation: {debug.incrementerForAnimation}</div>
+  const statusItems = [
+    { label: 'rec', value: debug.isRecording ? 'on' : 'off', active: debug.isRecording },
+    { label: 'play', value: debug.isPlaying ? 'on' : 'off', active: debug.isPlaying },
+  ];
 
-      <div style={{ color: debug.FPS >= 50 ? 'green' : 'red' }}>
-        FPS: {debug.FPS}
+  const metricItems = [
+    { label: 'frames', value: debug.frames ?? 0 },
+    { label: 'time', value: debug.time?.toFixed(2) ?? '0.00' },
+    { label: 'bass', value: bands.current.bass?.toFixed(3) ?? '0.000' },
+    { label: 'mid', value: bands.current.mid?.toFixed(3) ?? '0.000' },
+  ];
+
+  return (
+    <div className="debug-overlay" aria-label="Animation parameters">
+      <div className="debug-status-row">
+        {statusItems.map((item) => (
+          <div
+            key={item.label}
+            className={`debug-status ${item.active ? 'is-active' : ''}`}
+          >
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
       </div>
-      <div></div>
+
+      <div className="debug-metrics">
+        {metricItems.map((item) => (
+          <div key={item.label} className="debug-metric">
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+
+      <div className={`debug-fps ${debug.FPS >= 50 ? 'is-good' : 'is-low'}`}>
+        <span>fps</span>
+        <strong>{debug.FPS ?? 0}</strong>
+      </div>
     </div>
   );
 }

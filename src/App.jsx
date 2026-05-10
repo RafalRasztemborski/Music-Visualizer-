@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import p5 from 'p5';
 import { useAudioReactive } from './hooks/useAudioReactive';
-import { useAudioReactiveRealTime } from './hooks/useAudioReactiveRealTIme';
 
 // --- Example Sketches ---
 const sketches = {
@@ -61,6 +60,7 @@ const sketches = {
       bassAnimTreshold: { type: 'range', min: 0, max: 1000, default: 500 },
       bassAttack: { type: 'range', min: 1, max: 100, default: 50 },
       decay: { type: 'range', min: 1, max: 100, default: 50 },
+      kickZGapAmount: { type: 'range', min: 0, max: 350, default: 120 },
 
       // stroke: {type: "range", min: 1, max: 100, default: 5},
 
@@ -70,6 +70,13 @@ const sketches = {
 
       drawingTechnique: { type: 'checkbox', default: true },
       dynamicLight: { type: 'checkbox', default: true },
+
+      showFrontWall: { type: 'checkbox', default: true },
+      showBackWall: { type: 'checkbox', default: true },
+      showLeftWall: { type: 'checkbox', default: true },
+      showRightWall: { type: 'checkbox', default: true },
+      showTopWall: { type: 'checkbox', default: true },
+      showBottomWall: { type: 'checkbox', default: true },
 
       beatDetector: { type: 'checkbox', default: true },
 
@@ -508,7 +515,8 @@ const sketches = {
         //   paramsRef.current.Y_GAP +
         //   Math.floor(smoothBass * (120 * (smoothBass + 1)));
         Y_GAP = paramsRef.current.Y_GAP;
-        Z_GAP = paramsRef.current.Z_GAP;
+        const kickZGapBoost = bassAnim * paramsRef.current.kickZGapAmount;
+        Z_GAP = paramsRef.current.Z_GAP; // + kickZGapBoost;
 
         sketch.rotateX(paramsRef.current.X_ROTATE / 90);
         sketch.rotateY(paramsRef.current.Y_ROTATE / 90);
@@ -729,57 +737,47 @@ const sketches = {
           };
 
           // --- 1. FRONT & BACK (Płaszczyzna XY, stałe Z) ---
-          // Pętla po X i Y
-          // for (let x = 0; x < X_ROWS; x++) {
-          //   for (let y = 0; y < Y_ROWS; y++) {
-          //     // 1. Normalizacja współrzędnych do zakresu -1 do 1
-          //     let normX = sketch.map(x, 0, X_ROWS - 1, -1, 1);
-          //     let normY = sketch.map(y, 0, Y_ROWS - 1, -1, 1);
+          for (let x = 0; x < X_ROWS; x++) {
+            for (let y = 0; y < Y_ROWS; y++) {
+              let normX = sketch.map(x, 0, X_ROWS - 1, -1, 1);
+              let normY = sketch.map(y, 0, Y_ROWS - 1, -1, 1);
+              let distFromCenter = sketch.sqrt(normX * normX + normY * normY);
+              let finalDist = sketch.constrain(distFromCenter, 0, 1);
+              let audioMapping = 1 - finalDist;
+              let safeIndex = mid + Math.floor(audioMapping * low);
+              const freqMagnitude = musicData?.[safeIndex] ?? 0;
 
-          //     // 2. Obliczanie dystansu od środka (0,0)
-          //     // Używamy sqrt(x^2 + y^2) dla efektu kołowego lub max(abs(x), abs(y)) dla kwadratowego
-          //     let distFromCenter = sketch.sqrt(normX * normX + normY * normY);
-          //     let finalDist = sketch.constrain(distFromCenter, 0, 1);
+              if (isFrontWall(x, y, 0)) {
+                const anim = paramsRef.current.animate_z
+                  ? sketch.sq(sc * sinX[x] * sinY[y] * (freqMagnitude / 3))
+                  : 0;
 
-          //     // 3. Mapowanie na audio: krawędzie (dist ok. 1) -> Bass (low index)
-          //     // Środek (dist ok. 0) -> High (wysoki index)
-          //     let audioMapping = 1 - finalDist;
-          //     let safeIndex = mid + Math.floor(audioMapping * low);
+                sketch.push();
+                sketch.translate(
+                  -totalWidth / 2 + x * stepX + stepX / 2,
+                  totalHeight / 2 - y * stepY - stepY / 2,
+                  -totalDepth / 2 + stepZ / 2,
+                );
+                renderBox(anim, 0, 0, -anim);
+                sketch.pop();
+              }
 
-          //     // Pobieramy wartość z konkretnego pasma
-          //     const freqMagnitude = musicData ? musicData[safeIndex] : 0;
+              if (isBackWall(x, y, Z_ROWS - 1)) {
+                const anim = paramsRef.current.animate_z
+                  ? sketch.sq(sc * sinX[x] * sinY[y] * (freqMagnitude / 2))
+                  : 0;
 
-          //     // FRONT (z = 0)
-          //     if (isFrontWall(x, y, 0)) {
-          //       const anim = paramsRef.current.animate_z
-          //         ? sketch.sq(sc * sinX[x] * sinY[y] * (freqMagnitude / 3))
-          //         : 0;
-
-          //       sketch.push();
-          //       sketch.translate(
-          //         -totalWidth / 2 + x * stepX + stepX / 2,
-          //         totalHeight / 2 - y * stepY - stepY / 2,
-          //         -totalDepth / 2 + stepZ / 2,
-          //       );
-          //       renderBox(anim, 0, 0, -anim);
-          //       sketch.pop();
-          //     }
-          //     // BACK (z = Z_ROWS - 1)
-          //     if (isBackWall(x, y, Z_ROWS - 1)) {
-          //       const anim = paramsRef.current.animate_z
-          //         ? sketch.sq(sc * sinX[x] * sinY[y] * (freqMagnitude / 2))
-          //         : 0;
-          //       sketch.push();
-          //       sketch.translate(
-          //         -totalWidth / 2 + x * stepX + stepX / 2,
-          //         totalHeight / 2 - y * stepY - stepY / 2,
-          //         totalDepth / 2 - stepZ / 2,
-          //       );
-          //       renderBox(anim, 0, 0, anim);
-          //       sketch.pop();
-          //     }
-          //   }
-          // }
+                sketch.push();
+                sketch.translate(
+                  -totalWidth / 2 + x * stepX + stepX / 2,
+                  totalHeight / 2 - y * stepY - stepY / 2,
+                  totalDepth / 2 - stepZ / 2,
+                );
+                renderBox(anim, 0, 0, anim);
+                sketch.pop();
+              }
+            }
+          }
 
           // --- 2. LEFT & RIGHT (Płaszczyzna YZ, stałe X) ---
           // Pętla po Y i Z
@@ -1083,21 +1081,21 @@ const sketches = {
                 drawBox(x_pos, y_pos, z_pos, X_SIZE, Y_SIZE, Z_SIZE, 0, 0, _z);
               }
               // BACK (z = Z_ROWS - 1)
-              //   if (isBackWall(x, y, Z_ROWS - 1)) {
-              //     let _z = currentAnimateZ ? anim : 0;
-              //     setPos(x, y, Z_ROWS - 1, X_GAP, Y_GAP, Z_GAP, 0, 0, -_z);
-              //     drawBox(
-              //       x_pos,
-              //       y_pos,
-              //       z_pos,
-              //       X_SIZE,
-              //       Y_SIZE,
-              //       -Z_SIZE,
-              //       0,
-              //       0,
-              //       -_z,
-              //     );
-              //   }
+              if (isBackWall(x, y, Z_ROWS - 1)) {
+                let _z = currentAnimateZ ? anim : 0;
+                setPos(x, y, Z_ROWS - 1, X_GAP, Y_GAP, Z_GAP, 0, 0, -_z);
+                drawBox(
+                  x_pos,
+                  y_pos,
+                  z_pos,
+                  X_SIZE,
+                  Y_SIZE,
+                  -Z_SIZE,
+                  0,
+                  0,
+                  -_z,
+                );
+              }
             }
           }
 
@@ -1208,11 +1206,19 @@ const sketches = {
       };
 
       function isFrontWall(x, y, z) {
-        return z == 0 && y != 0 && y != Y_ROWS - 1 && x != 0 && x != X_ROWS - 1;
+        return (
+          paramsRef.current.showFrontWall &&
+          z == 0 &&
+          y != 0 &&
+          y != Y_ROWS - 1 &&
+          x != 0 &&
+          x != X_ROWS - 1
+        );
       }
 
       function isBackWall(x, y, z) {
         return (
+          paramsRef.current.showBackWall &&
           z == Z_ROWS - 1 &&
           y != 0 &&
           y != Y_ROWS - 1 &&
@@ -1222,11 +1228,19 @@ const sketches = {
       }
 
       function isTopWall(x, y, z) {
-        return y == 0 && z != 0 && z != Z_ROWS - 1 && x != 0 && x != X_ROWS - 1;
+        return (
+          paramsRef.current.showTopWall &&
+          y == 0 &&
+          z != 0 &&
+          z != Z_ROWS - 1 &&
+          x != 0 &&
+          x != X_ROWS - 1
+        );
       }
 
       function isBottomWall(x, y, z) {
         return (
+          paramsRef.current.showBottomWall &&
           y == Y_ROWS - 1 &&
           z != 0 &&
           z != Z_ROWS - 1 &&
@@ -1236,11 +1250,19 @@ const sketches = {
       }
 
       function isLeftWall(x, y, z) {
-        return x == 0 && y != 0 && y != Y_ROWS - 1 && z != 0 && z != Z_ROWS - 1;
+        return (
+          paramsRef.current.showLeftWall &&
+          x == 0 &&
+          y != 0 &&
+          y != Y_ROWS - 1 &&
+          z != 0 &&
+          z != Z_ROWS - 1
+        );
       }
 
       function isRightWall(x, y, z) {
         return (
+          paramsRef.current.showRightWall &&
           x == X_ROWS - 1 &&
           y != 0 &&
           y != Y_ROWS - 1 &&
@@ -1318,7 +1340,13 @@ const controlGroups = [
   { title: 'Spin', keys: ['spinX', 'spinY', 'spinZ', 'rotationSpped'] },
   {
     title: 'Audio',
-    keys: ['bassAnimTreshold', 'bassAttack', 'decay', 'beatDetector'],
+    keys: [
+      'bassAnimTreshold',
+      'bassAttack',
+      'decay',
+      'kickZGapAmount',
+      'beatDetector',
+    ],
   },
   {
     title: 'Position',
@@ -1326,7 +1354,24 @@ const controlGroups = [
   },
   {
     title: 'Animation',
-    keys: ['animate_x', 'animate_y', 'animate_z', 'freeze', 'transitionDuraion'],
+    keys: [
+      'animate_x',
+      'animate_y',
+      'animate_z',
+      'freeze',
+      'transitionDuraion',
+    ],
+  },
+  {
+    title: 'Walls',
+    keys: [
+      'showFrontWall',
+      'showBackWall',
+      'showLeftWall',
+      'showRightWall',
+      'showTopWall',
+      'showBottomWall',
+    ],
   },
   {
     title: 'Render',
@@ -1385,9 +1430,7 @@ function Controls({ config, values, setValues }) {
           <input
             type="checkbox"
             checked={values[key]}
-            onChange={(e) =>
-              setValues({ ...values, [key]: e.target.checked })
-            }
+            onChange={(e) => setValues({ ...values, [key]: e.target.checked })}
           />
         </label>
       );
@@ -1420,8 +1463,16 @@ function Controls({ config, values, setValues }) {
 
 function DebugOverlay({ params, bands, debug }) {
   const statusItems = [
-    { label: 'rec', value: debug.isRecording ? 'on' : 'off', active: debug.isRecording },
-    { label: 'play', value: debug.isPlaying ? 'on' : 'off', active: debug.isPlaying },
+    {
+      label: 'rec',
+      value: debug.isRecording ? 'on' : 'off',
+      active: debug.isRecording,
+    },
+    {
+      label: 'play',
+      value: debug.isPlaying ? 'on' : 'off',
+      active: debug.isPlaying,
+    },
   ];
 
   const metricItems = [
@@ -1583,11 +1634,10 @@ export default function App() {
     data: new Array(256).fill(0),
   });
 
-  useAudioReactiveRealTime(bandsRef);
-
   const containerRef = useRef(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [isLoaded, setIsLoaded] = useState(false);
+  const [audioMode, setAudioMode] = useState('idle');
 
   // navigator.mediaDevices.enumerateDevices().then((devices) => {
   //   devices.forEach((d) => {
@@ -1778,11 +1828,29 @@ export default function App() {
   const dataArrayRef = useRef(null);
   const audioRef = useRef(null);
   const audioCtxRef = useRef(null);
+  const liveStreamRef = useRef(null);
+  const liveSourceRef = useRef(null);
   let lastKickTime = 0;
+
+  function stopLiveInput() {
+    liveSourceRef.current?.disconnect();
+    liveSourceRef.current = null;
+
+    liveStreamRef.current?.getTracks().forEach((track) => track.stop());
+    liveStreamRef.current = null;
+
+    if (audioMode === 'live') {
+      analyserRef.current = null;
+      dataArrayRef.current = null;
+      setAudioMode('idle');
+    }
+  }
 
   function handleAudioUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
+
+    stopLiveInput();
 
     const audio = new Audio(URL.createObjectURL(file));
     // audio.crossOrigin = "anonymous";
@@ -1802,6 +1870,51 @@ export default function App() {
     analyserRef.current = analyser;
     dataArrayRef.current = dataArray;
     audioRef.current = audio;
+    setAudioMode('file');
+  }
+
+  async function startLiveInput() {
+    try {
+      audioRef.current?.pause();
+      stopLiveInput();
+
+      if (audioCtxRef.current?.state !== 'closed') {
+        await audioCtxRef.current?.close();
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
+      });
+
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.82;
+
+      const source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      audioCtxRef.current = audioCtx;
+      analyserRef.current = analyser;
+      dataArrayRef.current = dataArray;
+      liveStreamRef.current = stream;
+      liveSourceRef.current = source;
+      audioRef.current = null;
+      setAudioMode('live');
+    } catch (err) {
+      console.error('Live input error:', err);
+      alert(
+        'Nie udalo sie uruchomic live input. Sprawdz uprawnienia mikrofonu i wybierz BlackHole/Loopback jako input w przegladarce.',
+      );
+      setAudioMode('idle');
+    }
   }
 
   function playAudio() {
@@ -1813,6 +1926,16 @@ export default function App() {
 
     audioRef.current.play();
   }
+
+  useEffect(() => {
+    return () => {
+      liveSourceRef.current?.disconnect();
+      liveStreamRef.current?.getTracks().forEach((track) => track.stop());
+      if (audioCtxRef.current?.state !== 'closed') {
+        audioCtxRef.current?.close();
+      }
+    };
+  }, []);
 
   return (
     <div className="app" ref={containerRef}>
@@ -1862,6 +1985,12 @@ export default function App() {
         <p>{'status: '}</p>
         <input type="file" accept="audio/*" onChange={handleAudioUpload} />
         <button onClick={playAudio}>PLAY</button>
+        <br />
+        <button onClick={startLiveInput}>
+          {audioMode === 'live' ? 'LIVE INPUT ON' : 'LIVE INPUT'}
+        </button>
+        <button onClick={stopLiveInput}>STOP LIVE</button>
+        <p>{`audio: ${audioMode}`}</p>
       </div>
       {/* Right: Controls + List */}
       <div className="panel">

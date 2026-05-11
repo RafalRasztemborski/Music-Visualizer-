@@ -717,6 +717,9 @@ const sketches = {
           const low = 85;
           const mid = 170;
           const high = 255;
+          // const low = 1;
+          // const mid = 85;
+          // const high = 170;
 
           // Helper do rysowania pojedynczego boxa z opcjonalną animacją
           const renderBox = (
@@ -749,7 +752,13 @@ const sketches = {
 
               if (isFrontWall(x, y, 0)) {
                 const anim = paramsRef.current.animate_z
-                  ? sketch.sq(sc * sinX[x] * sinY[y] * (freqMagnitude / 3))
+                  ? //? sketch.sq(sc * sinX[x] * sinY[y] * (freqMagnitude / 3))
+                    sketch.sq(
+                      sc *
+                        sinX[x] *
+                        sinY[y] *
+                        (musicData ? musicData[safeIndex] / 6 : 1),
+                    )
                   : 0;
 
                 sketch.push();
@@ -758,13 +767,18 @@ const sketches = {
                   totalHeight / 2 - y * stepY - stepY / 2,
                   -totalDepth / 2 + stepZ / 2,
                 );
-                renderBox(anim, 0, 0, -anim);
+                renderBox(anim, 0, 0, -anim, X_SIZE, Y_SIZE, Z_SIZE + anim);
                 sketch.pop();
               }
 
               if (isBackWall(x, y, Z_ROWS - 1)) {
                 const anim = paramsRef.current.animate_z
-                  ? sketch.sq(sc * sinX[x] * sinY[y] * (freqMagnitude / 2))
+                  ? sketch.sq(
+                      sc *
+                        sinX[x] *
+                        sinY[y] *
+                        (musicData ? musicData[safeIndex] / 6 : 1),
+                    )
                   : 0;
 
                 sketch.push();
@@ -773,7 +787,10 @@ const sketches = {
                   totalHeight / 2 - y * stepY - stepY / 2,
                   totalDepth / 2 - stepZ / 2,
                 );
-                renderBox(anim, 0, 0, anim);
+                // jumpy
+                //renderBox(anim, 0, 0, anim);
+
+                renderBox(anim, 0, 0, anim, X_SIZE, Y_SIZE, Z_SIZE + anim);
                 sketch.pop();
               }
             }
@@ -1461,7 +1478,7 @@ function Controls({ config, values, setValues }) {
   );
 }
 
-function DebugOverlay({ params, bands, debug }) {
+function DebugOverlay({ bands, debug, midiStatus }) {
   const statusItems = [
     {
       label: 'rec',
@@ -1508,6 +1525,25 @@ function DebugOverlay({ params, bands, debug }) {
       <div className={`debug-fps ${debug.FPS >= 50 ? 'is-good' : 'is-low'}`}>
         <span>fps</span>
         <strong>{debug.FPS ?? 0}</strong>
+      </div>
+
+      <div className="debug-midi">
+        <div className="debug-midi__header">
+          <span>midi</span>
+          <strong>{midiStatus.message}</strong>
+        </div>
+        {midiStatus.control !== null && (
+          <div className="debug-midi__grid">
+            <span>knob</span>
+            <strong>{midiStatus.control}</strong>
+            <span>raw</span>
+            <strong>{midiStatus.rawValue}</strong>
+            <span>slider</span>
+            <strong>{midiStatus.mappedControl ?? '-'}</strong>
+            <span>value</span>
+            <strong>{midiStatus.mappedValue ?? '-'}</strong>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1638,6 +1674,15 @@ export default function App() {
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [isLoaded, setIsLoaded] = useState(false);
   const [audioMode, setAudioMode] = useState('idle');
+  const [midiStatus, setMidiStatus] = useState({
+    message: 'waiting',
+    control: null,
+    rawValue: null,
+    mappedControl: null,
+    mappedValue: null,
+  });
+  const midiControlMapRef = useRef({});
+  const rangeControlKeysRef = useRef([]);
 
   // navigator.mediaDevices.enumerateDevices().then((devices) => {
   //   devices.forEach((d) => {
@@ -1731,6 +1776,13 @@ export default function App() {
   const [currentSketch, setCurrentSketch] = useState('dupa');
   const sketchConfig = sketches[currentSketch];
 
+  useEffect(() => {
+    rangeControlKeysRef.current = Object.keys(
+      sketches[currentSketch].controls,
+    ).filter((key) => sketches[currentSketch].controls[key].type === 'range');
+    midiControlMapRef.current = {};
+  }, [currentSketch]);
+
   // console.log("bandsRef", bandsRef)
 
   const initialValues = Object.fromEntries(
@@ -1738,6 +1790,117 @@ export default function App() {
   );
 
   const [params, setParams] = useState(initialValues);
+
+  useEffect(() => {
+    if (!navigator.requestMIDIAccess) {
+      setMidiStatus((prev) => ({
+        ...prev,
+        message: 'not supported',
+      }));
+      return;
+    }
+
+    let midiAccess = null;
+    let isActive = true;
+
+    function mapMidiValue(value, conf) {
+      const normalized = value / 127;
+      return Math.round(conf.min + normalized * (conf.max - conf.min));
+    }
+
+    function getMappedControl(control) {
+      const keys = rangeControlKeysRef.current;
+      if (!keys.length) return null;
+
+      const existingKey = midiControlMapRef.current[control];
+      if (existingKey && keys.includes(existingKey)) return existingKey;
+
+      const usedKeys = new Set(Object.values(midiControlMapRef.current));
+      const nextKey = keys.find((key) => !usedKeys.has(key)) ?? keys[0];
+      midiControlMapRef.current[control] = nextKey;
+      return nextKey;
+    }
+
+    function handleMidiMessage(message) {
+      const [status, control, value] = message.data;
+      const command = status & 0xf0;
+
+      if (command !== 0xb0) return;
+
+      const mappedControl = getMappedControl(control);
+      if (!mappedControl) {
+        setMidiStatus({
+          message: 'no sliders',
+          control,
+          rawValue: value,
+          mappedControl: null,
+          mappedValue: null,
+        });
+        return;
+      }
+
+      const conf = sketches[currentSketch].controls[mappedControl];
+      const mappedValue = mapMidiValue(value, conf);
+
+      setParams((prev) => ({
+        ...prev,
+        [mappedControl]: mappedValue,
+      }));
+
+      setMidiStatus({
+        message: 'moving',
+        control,
+        rawValue: value,
+        mappedControl,
+        mappedValue,
+      });
+    }
+
+    function bindInputs(access) {
+      const inputs = Array.from(access.inputs.values());
+
+      inputs.forEach((input) => {
+        input.onmidimessage = handleMidiMessage;
+      });
+
+      setMidiStatus((prev) => ({
+        ...prev,
+        message: inputs.length ? 'connected' : 'no input',
+      }));
+    }
+
+    navigator
+      .requestMIDIAccess()
+      .then((access) => {
+        if (!isActive) return;
+
+        midiAccess = access;
+        bindInputs(access);
+
+        access.onstatechange = () => {
+          if (isActive) bindInputs(access);
+        };
+      })
+      .catch(() => {
+        if (!isActive) return;
+
+        setMidiStatus((prev) => ({
+          ...prev,
+          message: 'blocked',
+        }));
+      });
+
+    return () => {
+      isActive = false;
+
+      if (midiAccess) {
+        midiAccess.onstatechange = null;
+        midiAccess.inputs.forEach((input) => {
+          input.onmidimessage = null;
+        });
+      }
+    };
+  }, [currentSketch]);
 
   /*********************************
     JSON loaded to PARAMS
@@ -1955,7 +2118,11 @@ export default function App() {
           {/* <div className="controls2">
           <Controls config={sketchConfig.controls} values={params} setValues={setParams} />
         </div> */}
-          <DebugOverlay params={params} bands={bandsRef} debug={debug} />
+          <DebugOverlay
+            bands={bandsRef}
+            debug={debug}
+            midiStatus={midiStatus}
+          />
         </div>
       )}
       <div>

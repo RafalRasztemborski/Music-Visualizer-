@@ -2,6 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import p5 from 'p5';
 import { useAudioReactive } from './hooks/useAudioReactive';
 
+const MIDI_MAPPING_STORAGE_KEY = 'p5-gallery-midi-mapping';
+const MIDI_MAPPING_FILE_NAME = 'midi-mapping.json';
+const MIDI_KNOBS_PER_BANK = 8;
+
 // --- Example Sketches ---
 const sketches = {
   bouncingBall: {
@@ -522,16 +526,18 @@ const sketches = {
         sketch.rotateY(paramsRef.current.Y_ROTATE / 90);
         sketch.rotateZ(paramsRef.current.Z_ROTATE / 90);
 
-        if (state.spinX) {
-          rotX += dt * (state.rotationSpped / 100);
+        const spinSpeed = paramsRef.current.rotationSpped / 100;
+
+        if (paramsRef.current.spinX) {
+          rotX += dt * spinSpeed;
         }
 
-        if (state.spinY) {
-          rotY += dt * (state.rotationSpped / 100);
+        if (paramsRef.current.spinY) {
+          rotY += dt * spinSpeed;
         }
 
-        if (state.spinZ) {
-          rotZ += dt * (state.rotationSpped / 100);
+        if (paramsRef.current.spinZ) {
+          rotZ += dt * spinSpeed;
         }
 
         if (!paramsRef.current.drawingTechnique) {
@@ -714,12 +720,12 @@ const sketches = {
           const totalDepth = Z_ROWS * stepZ;
 
           const musicData = bandsRef.current.current.data;
-          const low = 85;
-          const mid = 170;
-          const high = 255;
-          // const low = 1;
-          // const mid = 85;
-          // const high = 170;
+          //const low = 85;
+          //const mid = 170;
+          //const high = 255;
+          const low = 60;
+          const mid = 120;
+          const high = 180;
 
           // Helper do rysowania pojedynczego boxa z opcjonalną animacją
           const renderBox = (
@@ -1404,7 +1410,22 @@ function formatControlLabel(key) {
 }
 
 // --- Controls Panel ---
-function Controls({ config, values, setValues }) {
+function Controls({
+  config,
+  values,
+  setValues,
+  midiLearnEnabled,
+  midiLearnTarget,
+  midiBankLearnTarget,
+  activeMidiBank,
+  midiMappings,
+  onToggleMidiLearn,
+  onSelectMidiTarget,
+  onSelectMidiBank,
+  onLearnMidiBank,
+  onRemoveMidiMapping,
+  onSaveMidiMappings,
+}) {
   const groupedKeys = new Set(controlGroups.flatMap((group) => group.keys));
   const groups = [
     ...controlGroups,
@@ -1420,11 +1441,39 @@ function Controls({ config, values, setValues }) {
     if (!conf) return null;
 
     if (conf.type === 'range') {
+      const mappedEntry = Object.entries(midiMappings).find(
+        ([, mappedKey]) => mappedKey === key,
+      );
+      const mappedControl = mappedEntry?.[0]?.replace('cc:', 'CC ');
+      const isMidiTarget = midiLearnTarget === key;
+
       return (
-        <div key={key} className="control">
+        <div
+          key={key}
+          className={`control ${isMidiTarget ? 'is-midi-target' : ''} ${
+            mappedControl ? 'is-midi-mapped' : ''
+          }`}
+          onPointerDown={() => {
+            if (midiLearnEnabled) onSelectMidiTarget(key);
+          }}
+        >
           <div className="label-row">
             <span className="slider-label">{formatControlLabel(key)}</span>
-            <span className="slider-value">{values[key]}</span>
+            <span className="slider-value">
+              {mappedControl && (
+                <span
+                  className="midi-mapping-badge"
+                  onDoubleClick={(event) => {
+                    event.stopPropagation();
+                    onRemoveMidiMapping(mappedEntry[0]);
+                  }}
+                  title="Double click to remove MIDI mapping"
+                >
+                  {mappedControl}
+                </span>
+              )}
+              {values[key]}
+            </span>
           </div>
           <input
             className="futuristic-slider"
@@ -1432,8 +1481,14 @@ function Controls({ config, values, setValues }) {
             min={conf.min}
             max={conf.max}
             value={values[key]}
+            onFocus={() => {
+              if (midiLearnEnabled) onSelectMidiTarget(key);
+            }}
             onChange={(e) =>
-              setValues({ ...values, [key]: Number(e.target.value) })
+              setValues((prev) => ({
+                ...prev,
+                [key]: Number(e.target.value),
+              }))
             }
           />
         </div>
@@ -1447,7 +1502,12 @@ function Controls({ config, values, setValues }) {
           <input
             type="checkbox"
             checked={values[key]}
-            onChange={(e) => setValues({ ...values, [key]: e.target.checked })}
+            onChange={(e) =>
+              setValues((prev) => ({
+                ...prev,
+                [key]: e.target.checked,
+              }))
+            }
           />
         </label>
       );
@@ -1460,7 +1520,50 @@ function Controls({ config, values, setValues }) {
     <div className="controls-panel">
       <div className="controls-panel__header">
         <span>Parameters</span>
-        <strong>{Object.keys(config).length}</strong>
+        <div className="controls-panel__actions">
+          <button
+            className={`midi-learn-button ${
+              midiLearnEnabled ? 'is-active' : ''
+            }`}
+            type="button"
+            onClick={onToggleMidiLearn}
+            title="MIDI learn"
+          >
+            MIDI
+          </button>
+          {[1, 2].map((bank) => (
+            <button
+              key={bank}
+              className={`midi-bank-button ${
+                activeMidiBank === bank ? 'is-active' : ''
+              } ${midiBankLearnTarget === bank ? 'is-learning' : ''}`}
+              type="button"
+              onClick={() => {
+                if (midiLearnEnabled) {
+                  onLearnMidiBank(bank);
+                } else {
+                  onSelectMidiBank(bank);
+                }
+              }}
+              title={
+                midiLearnEnabled
+                  ? `Learn MIDI button for bank ${bank}`
+                  : `Use MIDI bank ${bank}`
+              }
+            >
+              B{bank}
+            </button>
+          ))}
+          <button
+            className="midi-save-button"
+            type="button"
+            onClick={onSaveMidiMappings}
+            title="Save MIDI mapping JSON"
+          >
+            JSON
+          </button>
+          <strong>{Object.keys(config).length}</strong>
+        </div>
       </div>
 
       {groups.map((group) => (
@@ -1557,6 +1660,17 @@ function SketchView({
   screenWidth,
   screenHeigh,
   setValues,
+  midiLearnEnabled,
+  midiLearnTarget,
+  midiBankLearnTarget,
+  activeMidiBank,
+  midiMappings,
+  onToggleMidiLearn,
+  onSelectMidiTarget,
+  onSelectMidiBank,
+  onLearnMidiBank,
+  onRemoveMidiMapping,
+  onSaveMidiMappings,
 }) {
   const containerRef = useRef();
   const p5Instance = useRef(null);
@@ -1618,6 +1732,17 @@ function SketchView({
           config={sketchConfig.controls}
           values={params}
           setValues={setValues}
+          midiLearnEnabled={midiLearnEnabled}
+          midiLearnTarget={midiLearnTarget}
+          midiBankLearnTarget={midiBankLearnTarget}
+          activeMidiBank={activeMidiBank}
+          midiMappings={midiMappings}
+          onToggleMidiLearn={onToggleMidiLearn}
+          onSelectMidiTarget={onSelectMidiTarget}
+          onSelectMidiBank={onSelectMidiBank}
+          onLearnMidiBank={onLearnMidiBank}
+          onRemoveMidiMapping={onRemoveMidiMapping}
+          onSaveMidiMappings={onSaveMidiMappings}
         />
       </div>
       {/* <div class="test">
@@ -1681,7 +1806,17 @@ export default function App() {
     mappedControl: null,
     mappedValue: null,
   });
-  const midiControlMapRef = useRef({});
+  const [midiLearnEnabled, setMidiLearnEnabled] = useState(false);
+  const [midiLearnTarget, setMidiLearnTarget] = useState(null);
+  const [midiBankLearnTarget, setMidiBankLearnTarget] = useState(null);
+  const [activeMidiBank, setActiveMidiBank] = useState(1);
+  const [midiMappings, setMidiMappings] = useState({});
+  const midiMappingsRef = useRef({});
+  const midiLearnEnabledRef = useRef(false);
+  const midiLearnTargetRef = useRef(null);
+  const midiBankLearnTargetRef = useRef(null);
+  const activeMidiBankRef = useRef(1);
+  const hasLoadedMidiMappingsRef = useRef(false);
   const rangeControlKeysRef = useRef([]);
 
   // navigator.mediaDevices.enumerateDevices().then((devices) => {
@@ -1780,8 +1915,63 @@ export default function App() {
     rangeControlKeysRef.current = Object.keys(
       sketches[currentSketch].controls,
     ).filter((key) => sketches[currentSketch].controls[key].type === 'range');
-    midiControlMapRef.current = {};
+    setMidiLearnTarget(null);
   }, [currentSketch]);
+
+  useEffect(() => {
+    const savedMappings = localStorage.getItem(MIDI_MAPPING_STORAGE_KEY);
+
+    if (savedMappings) {
+      try {
+        setMidiMappings(JSON.parse(savedMappings));
+        hasLoadedMidiMappingsRef.current = true;
+        return;
+      } catch (err) {
+        console.error('Błąd parsowania zapisanej mapy MIDI:', err);
+      }
+    }
+
+    fetch(`/${MIDI_MAPPING_FILE_NAME}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((mapping) => {
+        if (mapping && typeof mapping === 'object' && !Array.isArray(mapping)) {
+          setMidiMappings(mapping);
+        }
+        hasLoadedMidiMappingsRef.current = true;
+      })
+      .catch(() => {
+        hasLoadedMidiMappingsRef.current = true;
+      });
+  }, []);
+
+  useEffect(() => {
+    midiMappingsRef.current = midiMappings;
+    if (!hasLoadedMidiMappingsRef.current) return;
+    localStorage.setItem(
+      MIDI_MAPPING_STORAGE_KEY,
+      JSON.stringify(midiMappings),
+    );
+  }, [midiMappings]);
+
+  useEffect(() => {
+    midiLearnEnabledRef.current = midiLearnEnabled;
+    if (!midiLearnEnabled) {
+      setMidiLearnTarget(null);
+      setMidiBankLearnTarget(null);
+    }
+  }, [midiLearnEnabled]);
+
+  useEffect(() => {
+    midiLearnTargetRef.current = midiLearnTarget;
+  }, [midiLearnTarget]);
+
+  useEffect(() => {
+    midiBankLearnTargetRef.current = midiBankLearnTarget;
+  }, [midiBankLearnTarget]);
+
+  useEffect(() => {
+    activeMidiBankRef.current = activeMidiBank;
+  }, [activeMidiBank]);
 
   // console.log("bandsRef", bandsRef)
 
@@ -1808,30 +1998,116 @@ export default function App() {
       return Math.round(conf.min + normalized * (conf.max - conf.min));
     }
 
-    function getMappedControl(control) {
-      const keys = rangeControlKeysRef.current;
-      if (!keys.length) return null;
+    function getMidiSourceKey(command, control) {
+      if (command === 0xb0) return `cc:${control}`;
+      if (command === 0x90 || command === 0x80) return `note:${control}`;
+      return null;
+    }
 
-      const existingKey = midiControlMapRef.current[control];
-      if (existingKey && keys.includes(existingKey)) return existingKey;
-
-      const usedKeys = new Set(Object.values(midiControlMapRef.current));
-      const nextKey = keys.find((key) => !usedKeys.has(key)) ?? keys[0];
-      midiControlMapRef.current[control] = nextKey;
-      return nextKey;
+    function getBankedControl(control) {
+      return control + (activeMidiBankRef.current - 1) * MIDI_KNOBS_PER_BANK;
     }
 
     function handleMidiMessage(message) {
       const [status, control, value] = message.data;
       const command = status & 0xf0;
+      const sourceKey = getMidiSourceKey(command, control);
+      const isPress = value > 0;
+      const bankLearnTarget = midiBankLearnTargetRef.current;
+
+      if (!sourceKey) return;
+
+      if (midiLearnEnabledRef.current && bankLearnTarget && isPress) {
+        setMidiMappings((prev) => ({
+          ...prev,
+          __bankButtons: {
+            ...(prev.__bankButtons ?? {}),
+            [bankLearnTarget]: sourceKey,
+          },
+        }));
+        setMidiBankLearnTarget(null);
+        setActiveMidiBank(bankLearnTarget);
+        setMidiStatus({
+          message: `bank ${bankLearnTarget} mapped`,
+          control,
+          rawValue: value,
+          mappedControl: `bank ${bankLearnTarget}`,
+          mappedValue: null,
+        });
+        return;
+      }
+
+      const bankButtons = midiMappingsRef.current.__bankButtons ?? {};
+      const selectedBank = Object.entries(bankButtons).find(
+        ([, mappedSourceKey]) => mappedSourceKey === sourceKey,
+      )?.[0];
+
+      if (selectedBank && isPress) {
+        const nextBank = Number(selectedBank);
+        setActiveMidiBank(nextBank);
+        setMidiStatus({
+          message: `bank ${nextBank}`,
+          control,
+          rawValue: value,
+          mappedControl: `bank ${nextBank}`,
+          mappedValue: null,
+        });
+        return;
+      }
 
       if (command !== 0xb0) return;
 
-      const mappedControl = getMappedControl(control);
+      const bankedControl = getBankedControl(control);
+      const mappingKey = `cc:${bankedControl}`;
+      const keys = rangeControlKeysRef.current;
+      const learnTarget = midiLearnTargetRef.current;
+
+      if (midiLearnEnabledRef.current) {
+        if (!learnTarget || !keys.includes(learnTarget)) {
+          setMidiStatus({
+            message: 'pick slider',
+            control: bankedControl,
+            rawValue: value,
+            mappedControl: null,
+            mappedValue: null,
+          });
+          return;
+        }
+
+        setMidiMappings((prev) => {
+          const sketchMappings = Object.fromEntries(
+            Object.entries(prev[currentSketch] ?? {}).filter(
+              ([key, mappedKey]) =>
+                key !== mappingKey && mappedKey !== learnTarget,
+            ),
+          );
+
+          return {
+            ...prev,
+            [currentSketch]: {
+              ...sketchMappings,
+              [mappingKey]: learnTarget,
+            },
+          };
+        });
+        setMidiLearnTarget(null);
+        setMidiStatus({
+          message: 'mapped',
+          control: bankedControl,
+          rawValue: value,
+          mappedControl: learnTarget,
+          mappedValue: null,
+        });
+        return;
+      }
+
+      const mappedControl =
+        midiMappingsRef.current[currentSketch]?.[mappingKey];
+
       if (!mappedControl) {
         setMidiStatus({
-          message: 'no sliders',
-          control,
+          message: 'unmapped',
+          control: bankedControl,
           rawValue: value,
           mappedControl: null,
           mappedValue: null,
@@ -1840,6 +2116,8 @@ export default function App() {
       }
 
       const conf = sketches[currentSketch].controls[mappedControl];
+      if (!conf || conf.type !== 'range') return;
+
       const mappedValue = mapMidiValue(value, conf);
 
       setParams((prev) => ({
@@ -1849,7 +2127,7 @@ export default function App() {
 
       setMidiStatus({
         message: 'moving',
-        control,
+        control: bankedControl,
         rawValue: value,
         mappedControl,
         mappedValue,
@@ -1905,6 +2183,26 @@ export default function App() {
   /*********************************
     JSON loaded to PARAMS
   */
+  function isMidiMappingConfig(data) {
+    return (
+      data &&
+      typeof data === 'object' &&
+      !Array.isArray(data) &&
+      Object.values(data).some(
+        (sketchMapping) =>
+          sketchMapping &&
+          typeof sketchMapping === 'object' &&
+          !Array.isArray(sketchMapping) &&
+          Object.keys(sketchMapping).some((key) => key.startsWith('cc:')),
+      )
+      || (
+        data.__bankButtons &&
+        typeof data.__bankButtons === 'object' &&
+        !Array.isArray(data.__bankButtons)
+      )
+    );
+  }
+
   function handleFileUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -1929,6 +2227,11 @@ export default function App() {
         }
 
         console.log('Wczytany JSON:', parsed);
+
+        if (isMidiMappingConfig(parsed)) {
+          setMidiMappings(parsed);
+          return;
+        }
 
         // 🔥 ważne: merge żeby nie wywalić brakujących pól
         setParams((prev) => ({
@@ -1967,6 +2270,65 @@ export default function App() {
 
     // 5. Zwalniamy pamięć
     URL.revokeObjectURL(url);
+  }
+
+  function handleSaveMidiMappings() {
+    downloadJSON(JSON.stringify(midiMappings, null, 2), MIDI_MAPPING_FILE_NAME);
+  }
+
+  function handleSelectMidiTarget(key) {
+    setMidiBankLearnTarget(null);
+    setMidiLearnTarget(key);
+    setMidiStatus((prev) => ({
+      ...prev,
+      message: 'move knob',
+      mappedControl: key,
+      mappedValue: null,
+    }));
+  }
+
+  function handleSelectMidiBank(bank) {
+    setActiveMidiBank(bank);
+    setMidiStatus((prev) => ({
+      ...prev,
+      message: `bank ${bank}`,
+      mappedControl: `bank ${bank}`,
+      mappedValue: null,
+    }));
+  }
+
+  function handleLearnMidiBank(bank) {
+    setMidiLearnTarget(null);
+    setMidiBankLearnTarget(bank);
+    setMidiStatus((prev) => ({
+      ...prev,
+      message: `press bank ${bank}`,
+      mappedControl: `bank ${bank}`,
+      mappedValue: null,
+    }));
+  }
+
+  function handleRemoveMidiMapping(mappingKey) {
+    setMidiMappings((prev) => {
+      const sketchMappings = { ...(prev[currentSketch] ?? {}) };
+      const removedControl = sketchMappings[mappingKey];
+
+      delete sketchMappings[mappingKey];
+
+            setMidiStatus((status) => ({
+              ...status,
+              message: 'removed',
+              control: Number(mappingKey.replace('cc:', '')),
+              rawValue: null,
+              mappedControl: removedControl ?? null,
+              mappedValue: null,
+      }));
+
+      return {
+        ...prev,
+        [currentSketch]: sketchMappings,
+      };
+    });
   }
 
   const debugText = window._debug || {};
@@ -2114,6 +2476,17 @@ export default function App() {
             screenWidth={size.width}
             screenHeigh={size.height}
             setValues={setParams}
+            midiLearnEnabled={midiLearnEnabled}
+            midiLearnTarget={midiLearnTarget}
+            midiBankLearnTarget={midiBankLearnTarget}
+            activeMidiBank={activeMidiBank}
+            midiMappings={midiMappings[currentSketch] ?? {}}
+            onToggleMidiLearn={() => setMidiLearnEnabled((prev) => !prev)}
+            onSelectMidiTarget={handleSelectMidiTarget}
+            onSelectMidiBank={handleSelectMidiBank}
+            onLearnMidiBank={handleLearnMidiBank}
+            onRemoveMidiMapping={handleRemoveMidiMapping}
+            onSaveMidiMappings={handleSaveMidiMappings}
           />
           {/* <div className="controls2">
           <Controls config={sketchConfig.controls} values={params} setValues={setParams} />

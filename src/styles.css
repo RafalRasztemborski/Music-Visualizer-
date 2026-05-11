@@ -514,6 +514,50 @@ input[type='range']::-webkit-slider-thumb:hover {
   text-align: center;
 }
 
+.controls-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.midi-learn-button,
+.midi-bank-button,
+.midi-save-button {
+  height: 24px;
+  padding: 0 8px;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.midi-learn-button:hover,
+.midi-bank-button:hover,
+.midi-save-button:hover {
+  color: rgba(255, 255, 255, 0.95);
+  border-color: rgba(20, 184, 166, 0.48);
+}
+
+.midi-learn-button.is-active,
+.midi-bank-button.is-active {
+  color: #081313;
+  background: #14b8a6;
+  border-color: rgba(20, 184, 166, 0.9);
+  box-shadow: 0 0 14px rgba(20, 184, 166, 0.42);
+}
+
+.midi-bank-button.is-learning {
+  color: #081313;
+  background: #facc15;
+  border-color: rgba(250, 204, 21, 0.9);
+  box-shadow: 0 0 14px rgba(250, 204, 21, 0.35);
+}
+
 .control-group {
   background: rgba(255, 255, 255, 0.045);
   border: 1px solid rgba(255, 255, 255, 0.09);
@@ -584,6 +628,18 @@ input[type='range']::-webkit-slider-thumb:hover {
   flex-direction: column;
   gap: 5px;
   margin-bottom: 0;
+  padding: 5px 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+.control.is-midi-target {
+  background: rgba(20, 184, 166, 0.11);
+  border-color: rgba(20, 184, 166, 0.62);
+}
+
+.control.is-midi-mapped:not(.is-midi-target) {
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 /* LABEL + VALUE */
@@ -605,10 +661,30 @@ input[type='range']::-webkit-slider-thumb:hover {
 
 /* VALUE */
 .slider-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: rgba(255, 255, 255, 0.66);
   font-family: monospace;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
+}
+
+.midi-mapping-badge {
+  padding: 1px 5px;
+  color: #14b8a6;
+  background: rgba(20, 184, 166, 0.12);
+  border: 1px solid rgba(20, 184, 166, 0.28);
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 9px;
+  line-height: 1.2;
+  user-select: none;
+}
+
+.midi-mapping-badge:hover {
+  color: #fb7185;
+  border-color: rgba(251, 113, 133, 0.45);
 }
 
 /* SLIDER */

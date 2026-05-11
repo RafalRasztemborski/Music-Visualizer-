@@ -201,6 +201,7 @@ const sketches = {
       // };
       sketch.setup = function () {
         //myShader = sketch.loadShader('/shader/shader.vert', '/shader/shader.frag')
+        sketch.pixelDensity(1); // real game changer in terms of fps on Retina screens
         sketch.createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT, sketch.WEBGL);
 
         let gl = sketch.drawingContext;
@@ -209,9 +210,8 @@ const sketches = {
 
         sketch.background(0);
         //sketch.hint(sketch.ENABLE_DEPTH_TEST); // sketch.hint is not a function
-        //sketch.pixelDensity(1); //real game changer in terms of fps
-        //sketch.noStroke();
-        //sketch.noSmooth();
+        sketch.noStroke();
+        sketch.noSmooth();
 
         // Tworzymy model sześcianu jednostkowego (1x1x1)
         // To wykonuje się tylko RAZ.
@@ -692,6 +692,12 @@ const sketches = {
         const currentAnimateX = curParams.animate_x;
         const currentAnimateY = curParams.animate_y;
         const currentAnimateZ = curParams.animate_z;
+        const showFrontWall = curParams.showFrontWall;
+        const showBackWall = curParams.showBackWall;
+        const showLeftWall = curParams.showLeftWall;
+        const showRightWall = curParams.showRightWall;
+        const showTopWall = curParams.showTopWall;
+        const showBottomWall = curParams.showBottomWall;
 
         const halfX = (X_ROWS * X_SIZE + X_GAP * X_ROWS) / 2;
         const halfY = (Y_ROWS * Y_SIZE + Y_GAP * Y_ROWS) / 2;
@@ -701,13 +707,13 @@ const sketches = {
         const sinZ = [];
 
         for (let x = 0; x < X_ROWS; x++) {
-          sinX[x] = sketch.sin((x / (X_ROWS - 1)) * sketch.PI);
+          sinX[x] = Math.sin((x / (X_ROWS - 1)) * Math.PI);
         }
         for (let y = 0; y < Y_ROWS; y++) {
-          sinY[y] = sketch.sin((y / (Y_ROWS - 1)) * sketch.PI);
+          sinY[y] = Math.sin((y / (Y_ROWS - 1)) * Math.PI);
         }
         for (let z = 0; z < Z_ROWS; z++) {
-          sinZ[z] = sketch.sin((z / (Z_ROWS - 1)) * sketch.PI);
+          sinZ[z] = Math.sin((z / (Z_ROWS - 1)) * Math.PI);
         }
 
         const drawOptimizedWalls = () => {
@@ -727,77 +733,72 @@ const sketches = {
           const mid = 120;
           const high = 180;
 
-          // Helper do rysowania pojedynczego boxa z opcjonalną animacją
-          const renderBox = (
-            animValue = 0,
-            ax = 0,
-            ay = 0,
-            az = 0,
-            x_size = X_SIZE,
-            y_size = Y_SIZE,
-            z_size = Z_SIZE,
+          const drawFastBox = (
+            x,
+            y,
+            z,
+            offsetX = 0,
+            offsetY = 0,
+            offsetZ = 0,
+            xSize = X_SIZE,
+            ySize = Y_SIZE,
+            zSize = Z_SIZE,
           ) => {
             sketch.push();
-            if (animValue !== 0) {
-              sketch.translate(ax, ay, az);
-            }
-            sketch.box(x_size, y_size, z_size);
+            sketch.translate(x + offsetX, y + offsetY, z + offsetZ);
+            sketch.box(xSize, ySize, zSize);
             sketch.pop();
           };
 
           // --- 1. FRONT & BACK (Płaszczyzna XY, stałe Z) ---
           for (let x = 0; x < X_ROWS; x++) {
             for (let y = 0; y < Y_ROWS; y++) {
-              let normX = sketch.map(x, 0, X_ROWS - 1, -1, 1);
-              let normY = sketch.map(y, 0, Y_ROWS - 1, -1, 1);
-              let distFromCenter = sketch.sqrt(normX * normX + normY * normY);
-              let finalDist = sketch.constrain(distFromCenter, 0, 1);
-              let audioMapping = 1 - finalDist;
-              let safeIndex = mid + Math.floor(audioMapping * low);
+              const canDrawXY =
+                x > 0 && x < X_ROWS - 1 && y > 0 && y < Y_ROWS - 1;
+              if (!canDrawXY) continue;
+
+              const normX = (x / (X_ROWS - 1)) * 2 - 1;
+              const normY = (y / (Y_ROWS - 1)) * 2 - 1;
+              const finalDist = Math.min(
+                Math.sqrt(normX * normX + normY * normY),
+                1,
+              );
+              const audioMapping = 1 - finalDist;
+              const safeIndex = mid + Math.floor(audioMapping * low);
               const freqMagnitude = musicData?.[safeIndex] ?? 0;
+              const zAmp =
+                sc * sinX[x] * sinY[y] * (musicData ? freqMagnitude / 6 : 1);
 
-              if (isFrontWall(x, y, 0)) {
-                const anim = paramsRef.current.animate_z
-                  ? //? sketch.sq(sc * sinX[x] * sinY[y] * (freqMagnitude / 3))
-                    sketch.sq(
-                      sc *
-                        sinX[x] *
-                        sinY[y] *
-                        (musicData ? musicData[safeIndex] / 6 : 1),
-                    )
-                  : 0;
+              if (showFrontWall) {
+                const anim = currentAnimateZ ? zAmp * zAmp : 0;
 
-                sketch.push();
-                sketch.translate(
+                drawFastBox(
                   -totalWidth / 2 + x * stepX + stepX / 2,
                   totalHeight / 2 - y * stepY - stepY / 2,
                   -totalDepth / 2 + stepZ / 2,
+                  0,
+                  0,
+                  -anim,
+                  X_SIZE,
+                  Y_SIZE,
+                  Z_SIZE + anim,
                 );
-                renderBox(anim, 0, 0, -anim, X_SIZE, Y_SIZE, Z_SIZE + anim);
-                sketch.pop();
               }
 
-              if (isBackWall(x, y, Z_ROWS - 1)) {
-                const anim = paramsRef.current.animate_z
-                  ? sketch.sq(
-                      sc *
-                        sinX[x] *
-                        sinY[y] *
-                        (musicData ? musicData[safeIndex] / 6 : 1),
-                    )
-                  : 0;
+              if (showBackWall) {
+                const anim = currentAnimateZ ? zAmp * zAmp : 0;
 
-                sketch.push();
-                sketch.translate(
+                drawFastBox(
                   -totalWidth / 2 + x * stepX + stepX / 2,
                   totalHeight / 2 - y * stepY - stepY / 2,
                   totalDepth / 2 - stepZ / 2,
+                  0,
+                  0,
+                  anim,
+                  X_SIZE,
+                  Y_SIZE,
+                  Z_SIZE + anim,
                 );
-                // jumpy
-                //renderBox(anim, 0, 0, anim);
-
-                renderBox(anim, 0, 0, anim, X_SIZE, Y_SIZE, Z_SIZE + anim);
-                sketch.pop();
               }
             }
           }
@@ -806,33 +807,31 @@ const sketches = {
           // Pętla po Y i Z
           for (let y = 0; y < Y_ROWS; y++) {
             for (let z = 0; z < Z_ROWS; z++) {
+              const canDrawYZ =
+                y > 0 && y < Y_ROWS - 1 && z > 0 && z < Z_ROWS - 1;
+              if (!canDrawYZ) continue;
+
               // 1. Mapujemy y i z na zakres od -1 do 1, gdzie 0 to środek
-              let normY = sketch.map(y, 0, Y_ROWS - 1, -1, 1);
-              let normZ = sketch.map(z, 0, Z_ROWS - 1, -1, 1);
+              const normY = (y / (Y_ROWS - 1)) * 2 - 1;
+              const normZ = (z / (Z_ROWS - 1)) * 2 - 1;
 
               // 2. Obliczamy odległość od środka (0,0) używając twierdzenia Pitagorasa
               // dist będzie w zakresie od 0 (środek) do ok. 1.41 (narożniki)
-              let distFromCenter = sketch.sqrt(normY * normY + normZ * normZ);
+              const distFromCenter = Math.sqrt(normY * normY + normZ * normZ);
 
               // 3. Odwracamy to: chcemy, żeby krawędzie (duży dist) miały mały indeks (Bass)
               // a środek (mały dist) miał wysoki indeks (High)
               // Ograniczamy dist do 1.0, żeby nie wyjść poza zakres tablicy danych
-              let finalDist = sketch.constrain(distFromCenter, 0, 1);
+              const finalDist = Math.min(distFromCenter, 1);
 
               // Inwersja: 1 - finalDist sprawi, że krawędzie = 0 (low), środek = 1 (high)
-              let audioMapping = 1 - finalDist;
+              const audioMapping = 1 - finalDist;
 
               // Wybieramy index z dostępnego pasma (np. do 255)
-              let safeIndex = Math.floor(audioMapping * low);
-
-              const anim = paramsRef.current.animate_x
-                ? sketch.sq(
-                    sc *
-                      sinZ[z] *
-                      sinY[y] *
-                      (musicData ? musicData[safeIndex] / 6 : 1),
-                  )
-                : 0;
+              const safeIndex = Math.floor(audioMapping * low);
+              const freqValue = musicData ? musicData[safeIndex] / 6 : 1;
+              const xAmp = sc * sinZ[z] * sinY[y] * freqValue;
+              const anim = currentAnimateX ? xAmp * xAmp : 0;
               //console.log(musicData[Math.ceil(255 / y + 1)]);
               // LEFT (x = 0)
               const posY = totalHeight / 2 - y * stepY - stepY / 2;
@@ -840,26 +839,17 @@ const sketches = {
               //posZ -= posZ * paramsRef.current.Crazy_z_position;
 
               // LEFT
-              if (isLeftWall(0, y, z)) {
+              if (showLeftWall) {
                 const posX = -totalWidth / 2 + stepX / 2;
                 if (isVisible(posX, posY, posZ)) {
-                  // <--- SPRAWDZANIE // UWGLEDNIJ SIZE JESZCZE
-
-                  sketch.push();
-                  sketch.translate(posX, posY, posZ);
-                  renderBox(anim, -anim, 0, 0, X_SIZE + anim);
-                  sketch.pop();
+                  drawFastBox(posX, posY, posZ, -anim, 0, 0, X_SIZE + anim);
                 }
               }
               // RIGHT
-              if (isRightWall(X_ROWS - 1, y, z)) {
+              if (showRightWall) {
                 const posX = totalWidth / 2 - stepX / 2;
                 if (isVisible(posX, posY, posZ)) {
-                  // <--- SPRAWDZANIE
-                  sketch.push();
-                  sketch.translate(posX, posY, posZ);
-                  renderBox(anim, anim, 0, 0, X_SIZE + anim);
-                  sketch.pop();
+                  drawFastBox(posX, posY, posZ, anim, 0, 0, X_SIZE + anim);
                 }
               }
             }
@@ -869,40 +859,33 @@ const sketches = {
           // Pętla po X i Z
           for (let x = 0; x < X_ROWS; x++) {
             for (let z = 0; z < Z_ROWS; z++) {
-              let normX = sketch.map(x, 0, X_ROWS - 1, -1, 1);
-              let normZ = sketch.map(z, 0, Z_ROWS - 1, -1, 1);
-              let dist = sketch.sqrt(normX * normX + normZ * normZ);
-              let safeIndex = low + Math.floor((1 - dist) * low);
-              const anim = paramsRef.current.animate_y
-                ? sketch.sq(
-                    sc *
-                      sinZ[z] *
-                      sinX[x] *
-                      (musicData ? musicData[safeIndex] / 8 : 1),
-                  )
-                : 0;
+              const canDrawXZ =
+                x > 0 && x < X_ROWS - 1 && z > 0 && z < Z_ROWS - 1;
+              if (!canDrawXZ) continue;
+
+              const normX = (x / (X_ROWS - 1)) * 2 - 1;
+              const normZ = (z / (Z_ROWS - 1)) * 2 - 1;
+              const dist = Math.min(Math.sqrt(normX * normX + normZ * normZ), 1);
+              const safeIndex = low + Math.floor((1 - dist) * low);
+              const freqValue = musicData ? musicData[safeIndex] / 8 : 1;
+              const yAmp = sc * sinZ[z] * sinX[x] * freqValue;
+              const anim = currentAnimateY ? yAmp * yAmp : 0;
 
               const posX = -totalWidth / 2 + x * stepX + stepX / 2;
               const posZ = -totalDepth / 2 + z * stepZ + stepZ / 2;
 
               // TOP
-              if (isTopWall(x, 0, z)) {
+              if (showTopWall) {
                 const posY = totalHeight / 2 - stepY / 2;
                 if (isVisible(posX, posY, posZ)) {
-                  sketch.push();
-                  sketch.translate(posX, posY, posZ);
-                  renderBox(anim, 0, anim, 0);
-                  sketch.pop();
+                  drawFastBox(posX, posY, posZ, 0, anim, 0);
                 }
               }
               // BOTTOM
-              if (isBottomWall(x, Y_ROWS - 1, z)) {
+              if (showBottomWall) {
                 const posY = -totalHeight / 2 + stepY / 2;
                 if (isVisible(posX, posY, posZ)) {
-                  sketch.push();
-                  sketch.translate(posX, posY, posZ);
-                  renderBox(anim, 0, -anim, 0);
-                  sketch.pop();
+                  drawFastBox(posX, posY, posZ, 0, -anim, 0);
                 }
               }
             }

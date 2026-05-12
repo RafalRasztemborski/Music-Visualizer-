@@ -865,7 +865,10 @@ const sketches = {
 
               const normX = (x / (X_ROWS - 1)) * 2 - 1;
               const normZ = (z / (Z_ROWS - 1)) * 2 - 1;
-              const dist = Math.min(Math.sqrt(normX * normX + normZ * normZ), 1);
+              const dist = Math.min(
+                Math.sqrt(normX * normX + normZ * normZ),
+                1,
+              );
               const safeIndex = low + Math.floor((1 - dist) * low);
               const freqValue = musicData ? musicData[safeIndex] / 8 : 1;
               const yAmp = sc * sinZ[z] * sinX[x] * freqValue;
@@ -1564,6 +1567,111 @@ function Controls({
   );
 }
 
+function DebugSpectrumAnalyzer({ data }) {
+  const canvasRef = useRef(null);
+  const canvasWidth = 240;
+  const canvasHeight = 80;
+
+  useEffect(() => {
+    if (!canvasRef.current || !data || data.length === 0) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+
+    // Wyczyść canvas
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    ctx.fillStyle = 'rgba(9, 11, 16, 0.9)';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    // Parametry wykresu
+    const leftPadding = 28;
+    const bottomPadding = 18;
+    const topPadding = 6;
+    const rightPadding = 6;
+    const plotWidth = canvasWidth - leftPadding - rightPadding;
+    const plotHeight = canvasHeight - topPadding - bottomPadding;
+
+    // Rysuj siatkę poziomą
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 4; i++) {
+      const y = topPadding + (plotHeight / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(leftPadding, y);
+      ctx.lineTo(canvasWidth - rightPadding, y);
+      ctx.stroke();
+    }
+
+    // Oś Y i etykiety
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.font = '10px var(--mono, monospace)';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    const yValues = [255, 192, 128, 64, 0];
+    for (let i = 0; i < yValues.length; i++) {
+      const value = yValues[i];
+      const y = topPadding + (plotHeight / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(leftPadding - 4, y);
+      ctx.lineTo(leftPadding, y);
+      ctx.stroke();
+      ctx.fillText(value.toString(), leftPadding - 8, y);
+    }
+
+    // Oś X i etykiety co 50 punktów
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const barsCount = Math.min(data.length, plotWidth);
+    const barWidth = plotWidth / barsCount;
+    const xStep = 50;
+    for (let index = 0; index < barsCount; index += xStep) {
+      const x = leftPadding + index * barWidth + barWidth / 2;
+      ctx.beginPath();
+      ctx.moveTo(x, canvasHeight - bottomPadding);
+      ctx.lineTo(x, canvasHeight - bottomPadding + 4);
+      ctx.stroke();
+      ctx.fillText(index.toString(), x, canvasHeight - bottomPadding + 5);
+    }
+
+    // Rysuj spektrum
+    ctx.strokeStyle = '#7cff5f';
+    ctx.lineWidth = 1.4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (let i = 0; i < barsCount; i++) {
+      const value = data[i] / 255;
+      const x = leftPadding + i * barWidth + barWidth / 2;
+      const y = topPadding + plotHeight - value * plotHeight;
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+
+    ctx.fillStyle = '#7cff5f';
+    for (let i = 0; i < barsCount; i++) {
+      const value = data[i] / 255;
+      const x = leftPadding + i * barWidth + barWidth / 2;
+      const y = topPadding + plotHeight - value * plotHeight;
+      ctx.beginPath();
+      ctx.arc(x, y, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="debug-spectrum-canvas"
+      width={canvasWidth}
+      height={canvasHeight}
+    />
+  );
+}
+
 function DebugOverlay({ bands, debug, midiStatus }) {
   const statusItems = [
     {
@@ -1583,6 +1691,7 @@ function DebugOverlay({ bands, debug, midiStatus }) {
     { label: 'time', value: debug.time?.toFixed(2) ?? '0.00' },
     { label: 'bass', value: bands.current.bass?.toFixed(3) ?? '0.000' },
     { label: 'mid', value: bands.current.mid?.toFixed(3) ?? '0.000' },
+    { label: 'high', value: bands.current.high?.toFixed(3) ?? '0.000' },
   ];
 
   return (
@@ -1607,6 +1716,8 @@ function DebugOverlay({ bands, debug, midiStatus }) {
           </div>
         ))}
       </div>
+
+      <DebugSpectrumAnalyzer data={bands.current.data} />
 
       <div className={`debug-fps ${debug.FPS >= 50 ? 'is-good' : 'is-low'}`}>
         <span>fps</span>
@@ -1870,6 +1981,15 @@ export default function App() {
       high /= len * 0.6;
 
       // 🔥 SMOOTH (ważne żeby nie skakało)
+      const smoothBass = (prev, next, factor = 0.2) =>
+        prev + (next - prev) * factor;
+
+      const smoothMid = (prev, next, factor = 0.4) =>
+        prev + (next - prev) * factor;
+
+      const smoothHigh = (prev, next, factor = 0.8) =>
+        prev + (next - prev) * factor;
+
       const smooth = (prev, next, factor = 0.2) =>
         prev + (next - prev) * factor;
 
@@ -2168,21 +2288,19 @@ export default function App() {
   */
   function isMidiMappingConfig(data) {
     return (
-      data &&
-      typeof data === 'object' &&
-      !Array.isArray(data) &&
-      Object.values(data).some(
-        (sketchMapping) =>
-          sketchMapping &&
-          typeof sketchMapping === 'object' &&
-          !Array.isArray(sketchMapping) &&
-          Object.keys(sketchMapping).some((key) => key.startsWith('cc:')),
-      )
-      || (
-        data.__bankButtons &&
+      (data &&
+        typeof data === 'object' &&
+        !Array.isArray(data) &&
+        Object.values(data).some(
+          (sketchMapping) =>
+            sketchMapping &&
+            typeof sketchMapping === 'object' &&
+            !Array.isArray(sketchMapping) &&
+            Object.keys(sketchMapping).some((key) => key.startsWith('cc:')),
+        )) ||
+      (data.__bankButtons &&
         typeof data.__bankButtons === 'object' &&
-        !Array.isArray(data.__bankButtons)
-      )
+        !Array.isArray(data.__bankButtons))
     );
   }
 
@@ -2298,13 +2416,13 @@ export default function App() {
 
       delete sketchMappings[mappingKey];
 
-            setMidiStatus((status) => ({
-              ...status,
-              message: 'removed',
-              control: Number(mappingKey.replace('cc:', '')),
-              rawValue: null,
-              mappedControl: removedControl ?? null,
-              mappedValue: null,
+      setMidiStatus((status) => ({
+        ...status,
+        message: 'removed',
+        control: Number(mappingKey.replace('cc:', '')),
+        rawValue: null,
+        mappedControl: removedControl ?? null,
+        mappedValue: null,
       }));
 
       return {
